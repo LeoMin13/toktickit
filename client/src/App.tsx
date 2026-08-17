@@ -8,7 +8,7 @@ export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
-  void categories;
+  // void categories;
 
   async function handleCheck() {
     setState("loading");
@@ -35,9 +35,15 @@ export default function App() {
       {state === "success" && (
         <div className="mt-4">
           <p><strong>System Status:</strong> Online</p>
+          <p className="mb-1"><strong>Supported Request Categories:</strong></p>
+          <ul>
+            {categories.map((c) => (
+              <li key={c.id}>{c.name}</li>
+            ))}
+          </ul>
         </div>
       )}
-
+      
       {state === "error" && (
         <div className="mt-4 text-danger">
           <p><strong>System Status:</strong> Offline</p>
