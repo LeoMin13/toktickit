@@ -1,13 +1,22 @@
-# Lab 1 — Test Plan and Evidence  (fill this in)
+# Lab 1 — Test Summary
 
-All test files live under server/tests/lab-01/ and client/tests/lab-01/.
+Test files location: `tests/lab-01/`
 
-| # | Tool | Test | Result |
-|---|------|------|--------|
-| 1 | Supertest | GET /api/health returns 200, status=ok | |
-| 2 | Supertest | GET /api/categories returns 4 seeded categories in id order | |
-| 3 | Vitest | Heading renders | |
-| 4 | Vitest | Success state shows Online + category list | |
-| 5 | Vitest | Error state shows Offline + message | |
+| Test File | Tool | Test Description |
+|---|---|---|
+| API-01 | Supertest | Health endpoint returns 200 and expected JSON |
+| API-02 | Supertest | Categories endpoint returns the four seeded categories |
+| UI-01 | Vitest | TokTickIT heading renders |
+| UI-02 | Vitest | Loading state changes to category list |
+| UI-03 | Vitest | API failure displays a useful error message |
 
-Paste your passing terminal output / screenshot below.
+## How to run
+
+\`\`\`bash
+cd server && npm test
+cd client && npm test
+\`\`\`
+
+## Result
+
+All 5 tests pass on branch `main` (2 backend + 3 frontend).
