@@ -1,47 +1,26 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { BrowserRouter } from "react-router-dom";
 import App from "../../src/App.js";
+import { RequesterProvider } from "../../src/context/RequesterContext.js";
 import * as api from "../../src/api.js";
 
+function renderApp() {
+  return render(
+    <BrowserRouter>
+      <RequesterProvider>
+        <App />
+      </RequesterProvider>
+    </BrowserRouter>
+  );
+}
+
 describe("App", () => {
-  // WORKED EXAMPLE — provided for you.
-  it("renders the TokTickIT heading", () => {
-    render(<App />);
-    expect(screen.getByText(/TokTickIT/i)).toBeInTheDocument();
-  });
-
-  // Issue 4 — write these yourself. Hint: mock the api module with
-  // vi.spyOn(api, "checkSystem").mockResolvedValue(...) / .mockRejectedValue(...)
-  // then click the button and assert the Online list / Offline message.
-  it("shows Online and the seeded categories on success", async () => {
-    vi.spyOn(api, "checkSystem").mockResolvedValue({
-      online: true,
-      categories: [
-        { id: 1, name: "Account and Access" },
-        { id: 2, name: "Hardware" },
-        { id: 3, name: "Software" },
-        { id: 4, name: "Network" },
-      ],
-    });
-
-    render(<App />);
-    fireEvent.click(screen.getByText("Check System"));
-
+  it("renders the TokTickIT heading on the Requester Selection screen", async () => {
+    vi.spyOn(api, "fetchRequesters").mockResolvedValue([]);
+    renderApp();
     await waitFor(() => {
-      expect(screen.getByText(/Online/i)).toBeInTheDocument();
+      expect(screen.getByText("TokTickIT")).toBeInTheDocument();
     });
-    expect(screen.getByText("Hardware")).toBeInTheDocument();
-  });
-
-  it("shows an Offline error message when the API is unavailable", async () => {
-    vi.spyOn(api, "checkSystem").mockRejectedValue(new Error("Backend unavailable"));
-
-    render(<App />);
-    fireEvent.click(screen.getByText("Check System"));
-
-    await waitFor(() => {
-      expect(screen.getByText(/Offline/i)).toBeInTheDocument();
-    });
-    expect(screen.getByText(/Backend unavailable/i)).toBeInTheDocument();
   });
 });
