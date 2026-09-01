@@ -1,55 +1,36 @@
-import { useState } from "react";
-import { checkSystem, Category } from "./api.js";
+import { Navigate, Route, Routes } from "react-router-dom";
+import RequesterSelection from "./pages/RequesterSelection.js";
+import AppShell from "./components/AppShell.js";
+import { useRequester } from "./context/RequesterContext.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
-type UiState = "idle" | "loading" | "success" | "error";
+// Placeholder screens until Issues 4/6/7 implement them.
+function MyTicketsPlaceholder() {
+  return <p>My Tickets — coming in Issue 6.</p>;
+}
+function CreateTicketPlaceholder() {
+  return <p>Create Ticket — coming in Issue 4.</p>;
+}
+
+function RequireRequester({ children }: { children: React.ReactElement }) {
+  const { requester } = useRequester();
+  if (!requester) return <Navigate to="/" replace />;
+  return children;
+}
 
 export default function App() {
-  const [state, setState] = useState<UiState>("idle");
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [errorMsg, setErrorMsg] = useState("");
-  // void categories;
-
-  async function handleCheck() {
-    setState("loading");
-    try {
-      const result = await checkSystem();
-      setCategories(result.categories);
-      setState("success");
-    } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Unknown error");
-      setState("error");
-    }
-  }
-
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="h3 mb-4">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
-
-      <button className="btn btn-success" onClick={handleCheck} disabled={state === "loading"}>
-        {state === "loading" ? "Loading…" : "Check System"}
-      </button>
-      
-      {state === "success" && (
-        <div className="mt-4">
-          <p><strong>System Status:</strong> Online</p>
-          <p className="mb-1"><strong>Supported Request Categories:</strong></p>
-          <ul>
-            {categories.map((c) => (
-              <li key={c.id}>{c.name}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      
-      {state === "error" && (
-        <div className="mt-4 text-danger">
-          <p><strong>System Status:</strong> Offline</p>
-          <p>{errorMsg}</p>
-        </div>
-      )}
-    </div>
+    <Routes>
+      <Route path="/" element={<RequesterSelection />} />
+      <Route
+        element={
+          <RequireRequester>
+            <AppShell />
+          </RequireRequester>
+        }
+      >
+        <Route path="/tickets" element={<MyTicketsPlaceholder />} />
+        <Route path="/tickets/new" element={<CreateTicketPlaceholder />} />
+      </Route>
+    </Routes>
   );
 }
