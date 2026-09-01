@@ -1,3 +1,5 @@
+import type { Requester } from "./types.js";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 export interface Category {
@@ -15,6 +17,8 @@ export interface SystemStatus {
 //        then fetch `${API_URL}/api/categories`; if not ok, throw.
 //        return { online: true, categories }.
 // Throwing on failure lets the UI show a single Offline/error state.
+
+
 export async function checkSystem(): Promise<SystemStatus> {
   const healthRes = await fetch(`${API_URL}/api/health`);
   if (!healthRes.ok) throw new Error("Backend unavailable");
@@ -24,4 +28,10 @@ export async function checkSystem(): Promise<SystemStatus> {
   const categories: Category[] = await catRes.json();
 
   return { online: true, categories };
+}
+
+export async function fetchRequesters(): Promise<Requester[]> {
+  const res = await fetch(`${API_URL}/api/requesters`);
+  if (!res.ok) throw new Error("Unable to load requesters");
+  return res.json();
 }
