@@ -1,4 +1,4 @@
-import type { Requester } from "./types.js";
+import type { Requester, RelatedSystem, Category } from "./types.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -33,5 +33,17 @@ export async function checkSystem(): Promise<SystemStatus> {
 export async function fetchRequesters(): Promise<Requester[]> {
   const res = await fetch(`${API_URL}/api/requesters`);
   if (!res.ok) throw new Error("Unable to load requesters");
+  return res.json();
+}
+
+export async function fetchCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_URL}/api/categories`);
+  if (!res.ok) throw new Error("Unable to load categories");
+  return res.json();
+}
+
+export async function fetchRelatedSystems(): Promise<RelatedSystem[]> {
+  const res = await fetch(`${API_URL}/api/related-systems`);
+  if (!res.ok) throw new Error("Unable to load related systems");
   return res.json();
 }

@@ -55,4 +55,17 @@ app.get("/api/requesters", async (_req: Request, res: Response) => {
   }
 });
 
+app.get("/api/related-systems", async (_req: Request, res: Response) => {
+  try {
+    const systems = await getPrisma().relatedSystem.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(systems);
+  } catch (err) {
+    res.status(500).json({ error: "Unable to load related systems" });
+  }
+});
+
 export default app;

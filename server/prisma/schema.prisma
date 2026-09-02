@@ -23,3 +23,10 @@ model RequesterUser {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
