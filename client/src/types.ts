@@ -37,3 +37,13 @@ export interface CreateTicketInput {
   description: string;
   requestedPriority: RequestedPriority;
 }
+
+export interface Attachment {
+  id: number;
+  ticketId: number;
+  originalFileName: string;
+  sizeBytes: number;
+  mimeType: string;
+  uploadedAt: string;
+  isRemoved: boolean;
+}

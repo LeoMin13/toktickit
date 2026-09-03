@@ -2,6 +2,8 @@ import { useEffect, useState, FormEvent } from "react";
 import { fetchCategories, fetchRelatedSystems, createTicket } from "../api.js";
 import { useRequester } from "../context/RequesterContext.js";
 import type { Category, RelatedSystem, RequestedPriority, Ticket } from "../types.js";
+import AttachmentPicker, { PendingFile } from "../components/AttachmentPicker.js";
+import { uploadAttachment } from "../api.js";
 
 type RefState = "loading" | "loaded" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
@@ -22,6 +24,9 @@ export default function CreateTicket() {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [createdTicket, setCreatedTicket] = useState<Ticket | null>(null);
+
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [uploadFailures, setUploadFailures] = useState<string[]>([]);
 
   useEffect(() => {
     loadReferenceData();
@@ -66,18 +71,31 @@ export default function CreateTicket() {
 
     setSubmitState("submitting");
     try {
-      const ticket = await createTicket(
-        {
-          categoryId: categoryId as number,
-          relatedSystemId: relatedSystemId as number,
-          summary: summary.trim(),
-          description: description.trim(),
-          requestedPriority,
-        },
-        requester!.id
-      );
-      setCreatedTicket(ticket);
-      setSubmitState("success");
+        const ticket = await createTicket(
+            {
+            categoryId: categoryId as number,
+            relatedSystemId: relatedSystemId as number,
+            summary: summary.trim(),
+            description: description.trim(),
+            requestedPriority,
+            },
+            requester!.id
+        );
+
+        // BR-08: ticket is saved even if some attachment uploads fail
+        const failures: string[] = [];
+        const validFiles = pendingFiles.filter((f) => !f.error);
+        for (const pf of validFiles) {
+            try {
+            await uploadAttachment(ticket.id, pf.file, requester!.id);
+            } catch (uploadErr) {
+            failures.push(`${pf.file.name}: ${(uploadErr as Error).message}`);
+            }
+        }
+
+        setUploadFailures(failures);
+        setCreatedTicket(ticket);
+        setSubmitState("success");
     } catch (err) {
       const e = err as Error & { fields?: Record<string, string> };
       if (e.fields) {
@@ -92,11 +110,21 @@ export default function CreateTicket() {
 
   if (submitState === "success" && createdTicket) {
     return (
-      <div className="alert alert-success" role="status">
+        <div className="alert alert-success" role="status">
         <h2 className="h5">Ticket created</h2>
         <p className="mb-1">
-          Your official Ticket Number is <strong>{createdTicket.ticketNumber}</strong>.
+            Your official Ticket Number is <strong>{createdTicket.ticketNumber}</strong>.
         </p>
+        {uploadFailures.length > 0 && (
+            <div className="alert alert-warning mt-3 mb-0">
+            <p className="mb-1">Some attachments could not be uploaded:</p>
+            <ul className="mb-0">
+                {uploadFailures.map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }
@@ -194,6 +222,9 @@ export default function CreateTicket() {
         {fieldErrors.description && <div className="invalid-feedback">{fieldErrors.description}</div>}
       </div>
 
+      <div className="mb-4">
+        <AttachmentPicker files={pendingFiles} onChange={setPendingFiles} />
+      </div>
       <button type="submit" className="btn btn-success" disabled={submitState === "submitting"}>
         {submitState === "submitting" ? "Submitting…" : "Submit Ticket"}
       </button>
