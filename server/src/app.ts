@@ -3,6 +3,11 @@ import { generateTicketNumber } from "./services/ticketNumber.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
+import fs from "node:fs";
+import { upload } from "./middleware/upload.js";
+import multer from "multer";
+
+
 // getPrisma() is your lazy database handle. Call it INSIDE a route when you
 // need the DB (Issue 4). It is intentionally unused until then.
 // void getPrisma;
@@ -29,6 +34,19 @@ async function requireRequester(req: Request, res: Response, next: NextFunction)
   }
 
   res.locals.requesterId = requesterId;
+  next();
+}
+
+async function requireOwnedTicket(req: Request, res: Response, next: NextFunction) {
+  const ticketId = Number(req.params.id);
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket || ticket.requesterId !== res.locals.requesterId) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  res.locals.ticket = ticket;
   next();
 }
 
@@ -138,6 +156,63 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
     res.status(500).json({ error: "Unable to create ticket" });
   }
 });
+
+app.post(
+  "/api/tickets/:id/attachments",
+  requireRequester,
+  requireOwnedTicket,
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single("file")(req, res, (err: unknown) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ error: "File exceeds 5 MB limit" });
+        }
+        if (err instanceof Error && err.message === "UNSUPPORTED_FILE_TYPE") {
+          return res.status(400).json({ error: "Unsupported file type" });
+        }
+        return res.status(500).json({ error: "Upload failed" });
+      }
+      next();
+    });
+  },
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file provided" });
+    }
+
+    const ticketId = Number(req.params.id);
+    const prisma = getPrisma();
+
+    const activeCount = await prisma.attachment.count({
+      where: { ticketId, isRemoved: false },
+    });
+
+    if (activeCount >= 5) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(409).json({ error: "Maximum of 5 active attachments reached" });
+    }
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        ticketId,
+        originalFileName: req.file.originalname,
+        storedFileName: req.file.filename,
+        mimeType: req.file.mimetype,
+        sizeBytes: req.file.size,
+      },
+    });
+
+    res.status(201).json({
+      id: attachment.id,
+      ticketId: attachment.ticketId,
+      originalFileName: attachment.originalFileName,
+      sizeBytes: attachment.sizeBytes,
+      mimeType: attachment.mimeType,
+      uploadedAt: attachment.uploadedAt,
+      isRemoved: attachment.isRemoved,
+    });
+  }
+);
 
 
 export default app;

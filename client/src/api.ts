@@ -1,5 +1,6 @@
 import type { Requester, RelatedSystem, Category } from "./types.js";
 import type { CreateTicketInput, Ticket } from "./types.js";
+import type { Attachment } from "./types.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -61,5 +62,26 @@ export async function createTicket(input: CreateTicketInput, requesterId: number
     throw err;
   }
 
+  return res.json();
+}
+
+export async function uploadAttachment(
+  ticketId: number,
+  file: File,
+  requesterId: number
+): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    headers: { "X-Requester-Id": String(requesterId) },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to upload attachment");
+  }
   return res.json();
 }
