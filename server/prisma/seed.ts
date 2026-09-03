@@ -28,7 +28,24 @@ async function main() {
     create: { name: "Former Employee", email: "former.employee@example.com", isActive: false },
   });
 
-  console.log("Categories and Requesters seeded.");
+  const relatedSystems = [
+    "Email",
+    "Campus Wi-Fi",
+    "VPN",
+    "LEB2 App",
+    "Grade Submission App",
+    "Printer",
+    "Corporate Laptop",
+  ];
+  for (const name of relatedSystems) {
+    await prisma.relatedSystem.upsert({
+      where: { name },
+      update: {},
+      create: { name, isActive: true },
+    });
+  }
+
+  console.log("Categories, Requesters, and Related Systems seeded.");
 }
 
 main()

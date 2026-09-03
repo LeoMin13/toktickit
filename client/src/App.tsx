@@ -7,9 +7,7 @@ import { useRequester } from "./context/RequesterContext.js";
 function MyTicketsPlaceholder() {
   return <p>My Tickets — coming in Issue 6.</p>;
 }
-function CreateTicketPlaceholder() {
-  return <p>Create Ticket — coming in Issue 4.</p>;
-}
+import CreateTicket from "./pages/CreateTicket.js";
 
 function RequireRequester({ children }: { children: React.ReactElement }) {
   const { requester } = useRequester();
@@ -29,7 +27,7 @@ export default function App() {
         }
       >
         <Route path="/tickets" element={<MyTicketsPlaceholder />} />
-        <Route path="/tickets/new" element={<CreateTicketPlaceholder />} />
+        <Route path="/tickets/new" element={<CreateTicket />} />
       </Route>
     </Routes>
   );
