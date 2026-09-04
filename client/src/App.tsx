@@ -2,12 +2,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import RequesterSelection from "./pages/RequesterSelection.js";
 import AppShell from "./components/AppShell.js";
 import { useRequester } from "./context/RequesterContext.js";
-
-// Placeholder screens until Issues 4/6/7 implement them.
-function MyTicketsPlaceholder() {
-  return <p>My Tickets — coming in Issue 6.</p>;
-}
 import CreateTicket from "./pages/CreateTicket.js";
+import MyTickets from "./pages/MyTickets.js";
+
 
 function RequireRequester({ children }: { children: React.ReactElement }) {
   const { requester } = useRequester();
@@ -26,8 +23,9 @@ export default function App() {
           </RequireRequester>
         }
       >
-        <Route path="/tickets" element={<MyTicketsPlaceholder />} />
+        <Route path="/tickets" element={<MyTickets />} />
         <Route path="/tickets/new" element={<CreateTicket />} />
+        <Route path="/tickets/:id" element={<p>Ticket Detail — coming in Issue 7.</p>} />
       </Route>
     </Routes>
   );

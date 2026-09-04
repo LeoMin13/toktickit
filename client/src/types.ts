@@ -47,3 +47,36 @@ export interface Attachment {
   uploadedAt: string;
   isRemoved: boolean;
 }
+
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  categoryId: number;
+  categoryName: string;
+  requestedPriority: RequestedPriority;
+  currentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginatedTickets {
+  data: TicketListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface TicketListQuery {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: RequestedPriority;
+  currentStatus?: string;
+  sort?: "createdAt" | "updatedAt";
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
