@@ -1,6 +1,8 @@
 import type { Requester, RelatedSystem, Category } from "./types.js";
 import type { CreateTicketInput, Ticket } from "./types.js";
 import type { Attachment } from "./types.js";
+import type { PaginatedTickets, TicketListQuery } from "./types.js";
+
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -83,5 +85,27 @@ export async function uploadAttachment(
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? "Unable to upload attachment");
   }
+  return res.json();
+}
+
+export async function fetchTickets(
+  query: TicketListQuery,
+  requesterId: number
+): Promise<PaginatedTickets> {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.categoryId) params.set("categoryId", String(query.categoryId));
+  if (query.requestedPriority) params.set("requestedPriority", query.requestedPriority);
+  if (query.currentStatus) params.set("currentStatus", query.currentStatus);
+  params.set("sort", query.sort ?? "createdAt");
+  params.set("order", query.order ?? "desc");
+  params.set("page", String(query.page ?? 1));
+  params.set("pageSize", String(query.pageSize ?? 10));
+
+  const res = await fetch(`${API_URL}/api/tickets?${params.toString()}`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+
+  if (!res.ok) throw new Error("Unable to load tickets");
   return res.json();
 }
