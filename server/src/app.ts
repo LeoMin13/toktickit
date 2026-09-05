@@ -164,6 +164,7 @@ app.post(
   (req: Request, res: Response, next: NextFunction) => {
     upload.single("file")(req, res, (err: unknown) => {
       if (err) {
+        req.resume(); // vide le flux restant pour éviter un ECONNRESET côté client
         if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
           return res.status(413).json({ error: "File exceeds 5 MB limit" });
         }
@@ -295,6 +296,56 @@ app.get("/api/tickets", requireRequester, async (req: Request, res: Response) =>
   }
 });
 
+app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
 
+  try {
+    const ticket = await getPrisma().ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        category: { select: { name: true } },
+        relatedSystem: { select: { name: true } },
+        attachments: {
+          select: {
+            id: true,
+            originalFileName: true,
+            sizeBytes: true,
+            mimeType: true,
+            uploadedAt: true,
+            isRemoved: true,
+            removedAt: true,
+            removalReason: true,
+          },
+        },
+      },
+    });
+
+    if (!ticket || ticket.requesterId !== res.locals.requesterId) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    res.status(200).json({
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      requesterId: ticket.requesterId,
+      categoryId: ticket.categoryId,
+      categoryName: ticket.category.name,
+      relatedSystemId: ticket.relatedSystemId,
+      relatedSystemName: ticket.relatedSystem.name,
+      summary: ticket.summary,
+      description: ticket.description,
+      requestedPriority: ticket.requestedPriority,
+      currentStatus: ticket.currentStatus,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+      attachments: ticket.attachments,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Unable to load ticket" });
+  }
+});
 
 export default app;

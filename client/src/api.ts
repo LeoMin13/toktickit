@@ -1,7 +1,8 @@
-import type { Requester, RelatedSystem, Category } from "./types.js";
+import type { Requester, RelatedSystem } from "./types.js";
 import type { CreateTicketInput, Ticket } from "./types.js";
 import type { Attachment } from "./types.js";
 import type { PaginatedTickets, TicketListQuery } from "./types.js";
+// import type { Ticket, Attachment } from "./types.js";
 
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -107,5 +108,20 @@ export async function fetchTickets(
   });
 
   if (!res.ok) throw new Error("Unable to load tickets");
+  return res.json();
+}
+
+export interface TicketDetail extends Ticket {
+  categoryName: string;
+  relatedSystemName: string;
+  attachments: Attachment[];
+}
+
+export async function fetchTicketDetail(ticketId: number, requesterId: number): Promise<TicketDetail> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+  if (res.status === 404) throw new Error("Ticket not found");
+  if (!res.ok) throw new Error("Unable to load ticket");
   return res.json();
 }

@@ -4,6 +4,7 @@ import AppShell from "./components/AppShell.js";
 import { useRequester } from "./context/RequesterContext.js";
 import CreateTicket from "./pages/CreateTicket.js";
 import MyTickets from "./pages/MyTickets.js";
+import TicketDetail from "./pages/TicketDetail.js";
 
 
 function RequireRequester({ children }: { children: React.ReactElement }) {
@@ -25,7 +26,7 @@ export default function App() {
       >
         <Route path="/tickets" element={<MyTickets />} />
         <Route path="/tickets/new" element={<CreateTicket />} />
-        <Route path="/tickets/:id" element={<p>Ticket Detail — coming in Issue 7.</p>} />
+        <Route path="/tickets/:id" element={<TicketDetail />} />
       </Route>
     </Routes>
   );
