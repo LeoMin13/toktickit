@@ -182,10 +182,12 @@ export default function MyTickets() {
                   <td>{t.summary}</td>
                   <td>{t.categoryName}</td>
                   <td>
-                    <span className="badge bg-secondary">{t.requestedPriority}</span>
+                    <span className={`badge badge-priority-${t.requestedPriority.toLowerCase()}`}>
+                      {t.requestedPriority}
+                    </span>
                   </td>
                   <td>
-                    <span className="badge bg-success">{t.currentStatus}</span>
+                    <span className="badge badge-status-new">{t.currentStatus}</span>
                   </td>
                 </tr>
               ))}

@@ -1,0 +1,45 @@
+:root {
+  --color-primary: #006B3C;
+  --color-secondary: #0B7A46;
+  --color-pale: #EAF6EF;
+  --color-bg: #F5F7F6;
+  --color-surface: #FFFFFF;
+  --color-border: #D9E2DD;
+  --color-text: #1F2B25;
+  --color-readonly-bg: #EEF3F0;
+  --color-error: #8A1F1F;
+  --color-warning: #B9770E;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.badge-priority-low {
+  background-color: rgba(11, 122, 70, 0.15);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+
+.badge-priority-medium {
+  background-color: rgba(185, 119, 14, 0.15);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.badge-priority-high {
+  background-color: rgba(138, 31, 31, 0.15);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.badge-status-new {
+  background-color: var(--color-pale);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+
+.field-readonly {
+  background-color: var(--color-readonly-bg);
+}
