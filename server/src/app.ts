@@ -6,7 +6,7 @@ import { getPrisma } from "./prisma.js";
 import fs from "node:fs";
 import { upload } from "./middleware/upload.js";
 import multer from "multer";
-
+import path from "node:path";
 
 // getPrisma() is your lazy database handle. Call it INSIDE a route when you
 // need the DB (Issue 4). It is intentionally unused until then.
@@ -50,6 +50,24 @@ async function requireOwnedTicket(req: Request, res: Response, next: NextFunctio
   next();
 }
 
+async function requireOwnedAttachment(req: Request, res: Response, next: NextFunction) {
+  const attachmentId = Number(req.params.id);
+  if (!Number.isInteger(attachmentId)) {
+    return res.status(404).json({ error: "Attachment not found" });
+  }
+
+  const attachment = await getPrisma().attachment.findUnique({
+    where: { id: attachmentId },
+    include: { ticket: true },
+  });
+
+  if (!attachment || attachment.ticket.requesterId !== res.locals.requesterId) {
+    return res.status(404).json({ error: "Attachment not found" });
+  }
+
+  res.locals.attachment = attachment;
+  next();
+}
 
 
 app.get("/api/health", (_req: Request, res: Response) => {
@@ -211,6 +229,59 @@ app.post(
       mimeType: attachment.mimeType,
       uploadedAt: attachment.uploadedAt,
       isRemoved: attachment.isRemoved,
+    });
+  }
+);
+
+app.get(
+  "/api/attachments/:id/download",
+  requireRequester,
+  requireOwnedAttachment,
+  (_req: Request, res: Response) => {
+    const attachment = res.locals.attachment;
+
+    if (attachment.isRemoved) {
+      return res.status(410).json({ error: "This attachment has been removed" });
+    }
+
+    const filePath = path.join(process.cwd(), "uploads", attachment.storedFileName);
+    res.download(filePath, attachment.originalFileName, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).json({ error: "Unable to download attachment" });
+      }
+    });
+  }
+);
+
+app.delete(
+  "/api/attachments/:id",
+  requireRequester,
+  requireOwnedAttachment,
+  async (req: Request, res: Response) => {
+    const attachment = res.locals.attachment;
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+
+    if (reason.length < 3) {
+      return res.status(400).json({
+        error: "Validation failed",
+        fields: { reason: "Reason must be at least 3 characters" },
+      });
+    }
+
+    if (attachment.isRemoved) {
+      return res.status(409).json({ error: "Attachment already removed" });
+    }
+
+    const updated = await getPrisma().attachment.update({
+      where: { id: attachment.id },
+      data: { isRemoved: true, removedAt: new Date(), removalReason: reason },
+    });
+
+    res.status(200).json({
+      id: updated.id,
+      isRemoved: updated.isRemoved,
+      removedAt: updated.removedAt,
+      removalReason: updated.removalReason,
     });
   }
 );
