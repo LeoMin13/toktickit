@@ -58,7 +58,7 @@ describe("TicketDetail", () => {
           isRemoved: true,
           removedAt: new Date().toISOString(),
           removalReason: "Uploaded wrong file",
-        } as never,
+        },
       ],
     });
 

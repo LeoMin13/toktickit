@@ -68,7 +68,7 @@ describe("Attachment removal flow", () => {
             isRemoved: true,
             removedAt: new Date().toISOString(),
             removalReason: "No longer needed",
-          } as never,
+          },
         ],
       });
 

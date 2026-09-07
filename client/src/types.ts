@@ -46,6 +46,8 @@ export interface Attachment {
   mimeType: string;
   uploadedAt: string;
   isRemoved: boolean;
+  removedAt?: string;
+  removalReason?: string;
 }
 
 export interface TicketListItem {

@@ -2,7 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./lab-02",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   reporter: "list",
   use: {
     baseURL: "http://localhost:5173",
@@ -16,14 +17,14 @@ export default defineConfig({
       name: "tablet",
       use: {
         ...devices["Desktop Chrome"],
-        viewport: { width: 834, height: 1194 }, // iPad-like size, Chromium engine
+        viewport: { width: 834, height: 1194 },
       },
     },
     {
       name: "mobile",
       use: {
         ...devices["Desktop Chrome"],
-        viewport: { width: 390, height: 844 }, // iPhone-like size, Chromium engine
+        viewport: { width: 390, height: 844 },
       },
     },
   ],

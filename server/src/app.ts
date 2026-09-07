@@ -1,5 +1,5 @@
 import type { NextFunction } from "express";
-import { generateTicketNumber } from "./services/ticketNumber.js";
+import { generateTicketNumber, generateUniqueTicketNumber } from "./services/ticketNumber.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
@@ -16,7 +16,7 @@ import path from "node:path";
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
 app.use(express.json());
 
 
@@ -157,7 +157,7 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
   }
 
   try {
-    const ticketNumber = await generateTicketNumber(prisma);
+    const ticketNumber = await generateUniqueTicketNumber(prisma);
     const ticket = await prisma.ticket.create({
       data: {
         ticketNumber,

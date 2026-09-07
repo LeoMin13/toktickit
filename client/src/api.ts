@@ -126,8 +126,25 @@ export async function fetchTicketDetail(ticketId: number, requesterId: number): 
   return res.json();
 }
 
-export function attachmentDownloadUrl(attachmentId: number): string {
-  return `${API_URL}/api/attachments/${attachmentId}/download`;
+export async function downloadAttachment(
+  attachmentId: number,
+  requesterId: number
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/download`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to download attachment");
+  }
+
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `attachment-${attachmentId}`;
+
+  const blob = await res.blob();
+  return { blob, filename };
 }
 
 export async function removeAttachment(

@@ -44,7 +44,7 @@ test.describe("Zen Green visual screenshots", () => {
     await page.waitForSelector("text=My Tickets");
 
     // Open the first ticket in the list if one exists; skip screenshot if empty.
-    const firstTicketLink = page.locator("table a:visible, .card a:visible").first();
+    const firstTicketLink = page.locator("table a:visible, a.card:visible").first();    
     if (await firstTicketLink.count()) {
         await firstTicketLink.click();
         await page.waitForSelector("text=Ticket Information");

@@ -43,3 +43,10 @@ body {
 .field-readonly {
   background-color: var(--color-readonly-bg);
 }
+
+.nav-link.nav-link-active {
+  text-decoration: underline !important;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+  text-shadow: 0 0 0.4px currentColor;
+}

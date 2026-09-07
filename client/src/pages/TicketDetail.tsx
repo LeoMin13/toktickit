@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchTicketDetail, TicketDetail as TicketDetailType, uploadAttachment, removeAttachment, attachmentDownloadUrl } from "../api.js";
+import { fetchTicketDetail, TicketDetail as TicketDetailType, uploadAttachment, removeAttachment, downloadAttachment } from "../api.js";
 import { useRequester } from "../context/RequesterContext.js";
 
 type LoadState = "loading" | "loaded" | "not-found" | "error";
@@ -69,6 +69,29 @@ export default function TicketDetail() {
     }
   }
 
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  async function handleDownload(attachmentId: number) {
+    if (!requester) return;
+    setDownloadingId(attachmentId);
+    setUploadError("");
+    try {
+      const { blob, filename } = await downloadAttachment(attachmentId, requester.id);
+      const url = URL.createObjectURL(blob);
+      const tempLink = document.createElement("a");
+      tempLink.href = url;
+      tempLink.download = filename;
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      tempLink.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   if (state === "loading") return <p role="status">Loading ticket…</p>;
 
   if (state === "not-found") {
@@ -134,9 +157,14 @@ export default function TicketDetail() {
               <li key={a.id} className="d-flex justify-content-between align-items-center py-1 border-bottom">
                 <span>{a.originalFileName} ({Math.round(a.sizeBytes / 1024)} KB)</span>
                 <div className="d-flex gap-2">
-                  <a className="btn btn-sm btn-outline-success" href={attachmentDownloadUrl(a.id)}>
-                    Download
-                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-success"
+                    onClick={() => handleDownload(a.id)}
+                    disabled={downloadingId === a.id}
+                  >
+                    {downloadingId === a.id ? "Downloading…" : "Download"}
+                  </button>
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-danger"

@@ -153,6 +153,12 @@ export default function CreateTicket() {
       )}
 
       <div className="mb-3">
+        <div className="form-label fw-semibold">Requester</div>
+        <div className="p-2 rounded field-readonly">
+          {requester?.name}
+        </div>
+      </div>
+      <div className="mb-3">
         <label htmlFor="category" className="form-label fw-semibold">Category *</label>
         <select
           id="category"
