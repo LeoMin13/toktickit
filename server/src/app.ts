@@ -1,8 +1,13 @@
 import type { NextFunction } from "express";
-import { generateTicketNumber } from "./services/ticketNumber.js";
+import { generateTicketNumber, generateUniqueTicketNumber } from "./services/ticketNumber.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
+import fs from "node:fs";
+import { upload } from "./middleware/upload.js";
+import multer from "multer";
+import path from "node:path";
+
 // getPrisma() is your lazy database handle. Call it INSIDE a route when you
 // need the DB (Issue 4). It is intentionally unused until then.
 // void getPrisma;
@@ -11,7 +16,7 @@ import { getPrisma } from "./prisma.js";
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
 app.use(express.json());
 
 
@@ -32,6 +37,37 @@ async function requireRequester(req: Request, res: Response, next: NextFunction)
   next();
 }
 
+async function requireOwnedTicket(req: Request, res: Response, next: NextFunction) {
+  const ticketId = Number(req.params.id);
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket || ticket.requesterId !== res.locals.requesterId) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  res.locals.ticket = ticket;
+  next();
+}
+
+async function requireOwnedAttachment(req: Request, res: Response, next: NextFunction) {
+  const attachmentId = Number(req.params.id);
+  if (!Number.isInteger(attachmentId)) {
+    return res.status(404).json({ error: "Attachment not found" });
+  }
+
+  const attachment = await getPrisma().attachment.findUnique({
+    where: { id: attachmentId },
+    include: { ticket: true },
+  });
+
+  if (!attachment || attachment.ticket.requesterId !== res.locals.requesterId) {
+    return res.status(404).json({ error: "Attachment not found" });
+  }
+
+  res.locals.attachment = attachment;
+  next();
+}
 
 
 app.get("/api/health", (_req: Request, res: Response) => {
@@ -121,7 +157,7 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
   }
 
   try {
-    const ticketNumber = await generateTicketNumber(prisma);
+    const ticketNumber = await generateUniqueTicketNumber(prisma);
     const ticket = await prisma.ticket.create({
       data: {
         ticketNumber,
@@ -139,5 +175,248 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
   }
 });
 
+app.post(
+  "/api/tickets/:id/attachments",
+  requireRequester,
+  requireOwnedTicket,
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single("file")(req, res, (err: unknown) => {
+      if (err) {
+        req.resume(); // vide le flux restant pour éviter un ECONNRESET côté client
+        if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ error: "File exceeds 5 MB limit" });
+        }
+        if (err instanceof Error && err.message === "UNSUPPORTED_FILE_TYPE") {
+          return res.status(400).json({ error: "Unsupported file type" });
+        }
+        return res.status(500).json({ error: "Upload failed" });
+      }
+      next();
+    });
+  },
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file provided" });
+    }
+
+    const ticketId = Number(req.params.id);
+    const prisma = getPrisma();
+
+    const activeCount = await prisma.attachment.count({
+      where: { ticketId, isRemoved: false },
+    });
+
+    if (activeCount >= 5) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(409).json({ error: "Maximum of 5 active attachments reached" });
+    }
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        ticketId,
+        originalFileName: req.file.originalname,
+        storedFileName: req.file.filename,
+        mimeType: req.file.mimetype,
+        sizeBytes: req.file.size,
+      },
+    });
+
+    res.status(201).json({
+      id: attachment.id,
+      ticketId: attachment.ticketId,
+      originalFileName: attachment.originalFileName,
+      sizeBytes: attachment.sizeBytes,
+      mimeType: attachment.mimeType,
+      uploadedAt: attachment.uploadedAt,
+      isRemoved: attachment.isRemoved,
+    });
+  }
+);
+
+app.get(
+  "/api/attachments/:id/download",
+  requireRequester,
+  requireOwnedAttachment,
+  (_req: Request, res: Response) => {
+    const attachment = res.locals.attachment;
+
+    if (attachment.isRemoved) {
+      return res.status(410).json({ error: "This attachment has been removed" });
+    }
+
+    const filePath = path.join(process.cwd(), "uploads", attachment.storedFileName);
+    res.download(filePath, attachment.originalFileName, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).json({ error: "Unable to download attachment" });
+      }
+    });
+  }
+);
+
+app.delete(
+  "/api/attachments/:id",
+  requireRequester,
+  requireOwnedAttachment,
+  async (req: Request, res: Response) => {
+    const attachment = res.locals.attachment;
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+
+    if (reason.length < 3) {
+      return res.status(400).json({
+        error: "Validation failed",
+        fields: { reason: "Reason must be at least 3 characters" },
+      });
+    }
+
+    if (attachment.isRemoved) {
+      return res.status(409).json({ error: "Attachment already removed" });
+    }
+
+    const updated = await getPrisma().attachment.update({
+      where: { id: attachment.id },
+      data: { isRemoved: true, removedAt: new Date(), removalReason: reason },
+    });
+
+    res.status(200).json({
+      id: updated.id,
+      isRemoved: updated.isRemoved,
+      removedAt: updated.removedAt,
+      removalReason: updated.removalReason,
+    });
+  }
+);
+
+const SORTABLE_FIELDS = new Set(["createdAt", "updatedAt"]);
+const PAGE_SIZES = new Set([10, 25, 50]);
+
+app.get("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+  const {
+    search,
+    categoryId,
+    requestedPriority,
+    currentStatus,
+    sort = "createdAt",
+    order = "desc",
+    page = "1",
+    pageSize = "10",
+  } = req.query as Record<string, string>;
+
+  const pageNum = Number(page);
+  const pageSizeNum = Number(pageSize);
+
+  if (!Number.isInteger(pageNum) || pageNum < 1) {
+    return res.status(400).json({ error: "Invalid query parameter", field: "page" });
+  }
+  if (!PAGE_SIZES.has(pageSizeNum)) {
+    return res.status(400).json({ error: "Invalid query parameter", field: "pageSize" });
+  }
+  if (!SORTABLE_FIELDS.has(sort)) {
+    return res.status(400).json({ error: "Invalid query parameter", field: "sort" });
+  }
+  if (order !== "asc" && order !== "desc") {
+    return res.status(400).json({ error: "Invalid query parameter", field: "order" });
+  }
+
+  const where: Record<string, unknown> = { requesterId: res.locals.requesterId };
+
+  if (search) {
+    where.OR = [
+      { summary: { contains: search, mode: "insensitive" } },
+      { ticketNumber: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (categoryId) where.categoryId = Number(categoryId);
+  if (requestedPriority) where.requestedPriority = requestedPriority;
+  if (currentStatus) where.currentStatus = currentStatus;
+
+  const prisma = getPrisma();
+
+  try {
+    const [data, totalItems] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        orderBy: { [sort]: order },
+        skip: (pageNum - 1) * pageSizeNum,
+        take: pageSizeNum,
+        include: { category: { select: { name: true } } },
+      }),
+      prisma.ticket.count({ where }),
+    ]);
+
+    res.status(200).json({
+      data: data.map((t) => ({
+        id: t.id,
+        ticketNumber: t.ticketNumber,
+        summary: t.summary,
+        categoryId: t.categoryId,
+        categoryName: t.category.name,
+        requestedPriority: t.requestedPriority,
+        currentStatus: t.currentStatus,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      })),
+      pagination: {
+        page: pageNum,
+        pageSize: pageSizeNum,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / pageSizeNum)),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Unable to load tickets" });
+  }
+});
+
+app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+
+  try {
+    const ticket = await getPrisma().ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        category: { select: { name: true } },
+        relatedSystem: { select: { name: true } },
+        attachments: {
+          select: {
+            id: true,
+            originalFileName: true,
+            sizeBytes: true,
+            mimeType: true,
+            uploadedAt: true,
+            isRemoved: true,
+            removedAt: true,
+            removalReason: true,
+          },
+        },
+      },
+    });
+
+    if (!ticket || ticket.requesterId !== res.locals.requesterId) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    res.status(200).json({
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      requesterId: ticket.requesterId,
+      categoryId: ticket.categoryId,
+      categoryName: ticket.category.name,
+      relatedSystemId: ticket.relatedSystemId,
+      relatedSystemName: ticket.relatedSystem.name,
+      summary: ticket.summary,
+      description: ticket.description,
+      requestedPriority: ticket.requestedPriority,
+      currentStatus: ticket.currentStatus,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+      attachments: ticket.attachments,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Unable to load ticket" });
+  }
+});
 
 export default app;

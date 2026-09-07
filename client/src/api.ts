@@ -1,5 +1,9 @@
-import type { Requester, RelatedSystem, Category } from "./types.js";
+import type { Requester, RelatedSystem } from "./types.js";
 import type { CreateTicketInput, Ticket } from "./types.js";
+import type { Attachment } from "./types.js";
+import type { PaginatedTickets, TicketListQuery } from "./types.js";
+// import type { Ticket, Attachment } from "./types.js";
+
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -62,4 +66,103 @@ export async function createTicket(input: CreateTicketInput, requesterId: number
   }
 
   return res.json();
+}
+
+export async function uploadAttachment(
+  ticketId: number,
+  file: File,
+  requesterId: number
+): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    headers: { "X-Requester-Id": String(requesterId) },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to upload attachment");
+  }
+  return res.json();
+}
+
+export async function fetchTickets(
+  query: TicketListQuery,
+  requesterId: number
+): Promise<PaginatedTickets> {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.categoryId) params.set("categoryId", String(query.categoryId));
+  if (query.requestedPriority) params.set("requestedPriority", query.requestedPriority);
+  if (query.currentStatus) params.set("currentStatus", query.currentStatus);
+  params.set("sort", query.sort ?? "createdAt");
+  params.set("order", query.order ?? "desc");
+  params.set("page", String(query.page ?? 1));
+  params.set("pageSize", String(query.pageSize ?? 10));
+
+  const res = await fetch(`${API_URL}/api/tickets?${params.toString()}`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+
+  if (!res.ok) throw new Error("Unable to load tickets");
+  return res.json();
+}
+
+export interface TicketDetail extends Ticket {
+  categoryName: string;
+  relatedSystemName: string;
+  attachments: Attachment[];
+}
+
+export async function fetchTicketDetail(ticketId: number, requesterId: number): Promise<TicketDetail> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+  if (res.status === 404) throw new Error("Ticket not found");
+  if (!res.ok) throw new Error("Unable to load ticket");
+  return res.json();
+}
+
+export async function downloadAttachment(
+  attachmentId: number,
+  requesterId: number
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/download`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to download attachment");
+  }
+
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `attachment-${attachmentId}`;
+
+  const blob = await res.blob();
+  return { blob, filename };
+}
+
+export async function removeAttachment(
+  attachmentId: number,
+  reason: string,
+  requesterId: number
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Requester-Id": String(requesterId),
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to remove attachment");
+  }
 }

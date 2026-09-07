@@ -37,3 +37,48 @@ export interface CreateTicketInput {
   description: string;
   requestedPriority: RequestedPriority;
 }
+
+export interface Attachment {
+  id: number;
+  ticketId: number;
+  originalFileName: string;
+  sizeBytes: number;
+  mimeType: string;
+  uploadedAt: string;
+  isRemoved: boolean;
+  removedAt?: string;
+  removalReason?: string;
+}
+
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  categoryId: number;
+  categoryName: string;
+  requestedPriority: RequestedPriority;
+  currentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginatedTickets {
+  data: TicketListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface TicketListQuery {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: RequestedPriority;
+  currentStatus?: string;
+  sort?: "createdAt" | "updatedAt";
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}

@@ -17,3 +17,18 @@ export async function generateTicketNumber(prisma: PrismaClient): Promise<string
 export function isValidTicketNumber(value: string): boolean {
   return TICKET_NUMBER_REGEX.test(value);
 }
+
+export async function generateUniqueTicketNumber(
+  prisma: PrismaClient,
+  attempt = 0
+): Promise<string> {
+  const candidate = await generateTicketNumber(prisma);
+  const existing = await prisma.ticket.findUnique({ where: { ticketNumber: candidate } });
+
+  if (!existing) return candidate;
+
+  if (attempt >= 5) {
+    throw new Error("Unable to generate a unique ticket number after several attempts");
+  }
+  return generateUniqueTicketNumber(prisma, attempt + 1);
+}

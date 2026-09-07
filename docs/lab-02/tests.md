@@ -30,6 +30,8 @@ E2E (Playwright).
 | UI-05 | UI | AC-07 | Select a 6 MB file in the picker | Inline error; file excluded from submit | `client/src/features/tickets/__tests__/AttachmentSection.test.tsx` | Pending |
 | UI-06 | UI | AC-09 | Requester switch (mocked context) | List re-fetches; filters clear | `client/src/features/tickets/__tests__/MyTickets.test.tsx` | Pending |
 | UI-07 | UI | AC-11 | Ticket Detail with active + removed attachment | Removed item shows metadata, no Download | `client/src/features/tickets/__tests__/RequesterTicketDetail.test.tsx` | Pending |
+| STYLE-01 | UI Style | ui-spec §3 | Required field shows `is-invalid` class on failed validation; Requester field shows `field-readonly` | Class assertions pass | `client/tests/lab-02/CreateTicket.style.test.tsx` | Pending |
+| STYLE-02 | UI Style | ui-spec §4 | Submit button shows busy/disabled state while `state === "submitting"` | Button disabled with "Submitting…" label | `client/tests/lab-02/CreateTicket.style.test.tsx` | Pending |
 | VISUAL-01 | Responsive | AC-05 | Playwright screenshots of all 3 screens at desktop/tablet/mobile | Saved to `artifacts/lab-02/screenshots/`; checklist passes | `e2e/lab-02/visual.spec.ts` | Pending |
 | E2E-01 | E2E | AC-01, AC-09 | Select Requester → create ticket with attachment → find in My Tickets → open Detail | Ticket Number visible throughout; attachment listed | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pending |
 | E2E-02 | E2E | AC-03 | Requester A creates a ticket; Requester B tries direct URL access | Access blocked | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pending |
