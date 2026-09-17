@@ -11,30 +11,30 @@ E2E (Playwright).
 
 | Test ID | Type | AC | What It Tests | Expected Result | Test File | Final |
 |---|---|---|---|---|---|---|
-| UNIT-01 | Unit | BR-01 | Ticket Number generator format/uniqueness | `TKT-YYYY-NNNNNN`, unique per call | `server/src/__tests__/ticketNumber.test.ts` | Pending |
-| API-01 | API | AC-01 | `POST /api/tickets` valid data | 201 with unique `ticketNumber` | `server/tests/lab-02/create-ticket.api.test.ts` | Pending |
-| API-02 | API | AC-04 | `POST /api/tickets` empty Summary | 400, field error, nothing saved | `server/tests/lab-02/create-ticket.api.test.ts` | Pending |
-| API-03 | API | AC-09 | `GET /api/tickets` for Requester A vs B | Each sees only their own tickets | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-04 | API | AC-10 | `GET /api/tickets?search=<no match>` | 200, empty `data` (no-results) | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-05 | API | — (BR-11) | `GET /api/tickets?pageSize=10&page=1` with 12 seeded | Correct pagination metadata | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-06 | API | AC-03 | `GET /api/tickets/:id` cross-requester | 404, no ownership hint | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
-| API-07 | API | AC-07 | Upload a 6 MB attachment | 413, size-limit message | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-08 | API | AC-08 | Upload 6th attachment on a full ticket | 409, limit message | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-09 | API | AC-11 | Soft-remove then attempt download | Remove succeeds (metadata kept); download → 410 | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-10 | API | — (FR-10) | Remove attachment on a ticket not owned | 404, no hint | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-11 | API | AC-12 | `GET /api/requesters` with none active | 200, empty array | `server/tests/lab-02/requesters.api.test.ts` | Pending |
-| UI-01 | UI | AC-02 | My Tickets rendered with no Requester selected | Redirects to Requester Selection | `client/src/features/tickets/__tests__/MyTickets.test.tsx` | Pending |
-| UI-02 | UI | AC-12 | Requester Selection with empty mocked list | Empty-state message shown | `client/src/features/requester/__tests__/RequesterSelection.test.tsx` | Pending |
-| UI-03 | UI | AC-04 | Submit Create Ticket with Summary empty | Field message shown; API not called | `client/src/features/tickets/__tests__/CreateTicket.test.tsx` | Pending |
-| UI-04 | UI | AC-06 | Submit with API mock rejecting | Safe error shown; values retained | `client/src/features/tickets/__tests__/CreateTicket.test.tsx` | Pending |
-| UI-05 | UI | AC-07 | Select a 6 MB file in the picker | Inline error; file excluded from submit | `client/src/features/tickets/__tests__/AttachmentSection.test.tsx` | Pending |
-| UI-06 | UI | AC-09 | Requester switch (mocked context) | List re-fetches; filters clear | `client/src/features/tickets/__tests__/MyTickets.test.tsx` | Pending |
-| UI-07 | UI | AC-11 | Ticket Detail with active + removed attachment | Removed item shows metadata, no Download | `client/src/features/tickets/__tests__/RequesterTicketDetail.test.tsx` | Pending |
-| STYLE-01 | UI Style | ui-spec §3 | Required field shows `is-invalid` class on failed validation; Requester field shows `field-readonly` | Class assertions pass | `client/tests/lab-02/CreateTicket.style.test.tsx` | Pending |
-| STYLE-02 | UI Style | ui-spec §4 | Submit button shows busy/disabled state while `state === "submitting"` | Button disabled with "Submitting…" label | `client/tests/lab-02/CreateTicket.style.test.tsx` | Pending |
-| VISUAL-01 | Responsive | AC-05 | Playwright screenshots of all 3 screens at desktop/tablet/mobile | Saved to `artifacts/lab-02/screenshots/`; checklist passes | `e2e/lab-02/visual.spec.ts` | Pending |
-| E2E-01 | E2E | AC-01, AC-09 | Select Requester → create ticket with attachment → find in My Tickets → open Detail | Ticket Number visible throughout; attachment listed | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pending |
-| E2E-02 | E2E | AC-03 | Requester A creates a ticket; Requester B tries direct URL access | Access blocked | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pending |
+| UNIT-01 | Unit | BR-01 | Ticket Number generator format/uniqueness | `TKT-YYYY-NNNNNN`, unique per call | `server/src/__tests__/ticketNumber.test.ts` | Pass |
+| API-01 | API | AC-01 | `POST /api/tickets` valid data | 201 with unique `ticketNumber` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-02 | API | AC-04 | `POST /api/tickets` empty Summary | 400, field error, nothing saved | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-03 | API | AC-09 | `GET /api/tickets` for Requester A vs B | Each sees only their own tickets | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-04 | API | AC-10 | `GET /api/tickets?search=<no match>` | 200, empty `data` (no-results) | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-05 | API | — (BR-11) | `GET /api/tickets?pageSize=10&page=1` with 12 seeded | Correct pagination metadata | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-06 | API | AC-03 | `GET /api/tickets/:id` cross-requester | 404, no ownership hint | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-07 | API | AC-07 | Upload a 6 MB attachment | 413, size-limit message | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-08 | API | AC-08 | Upload 6th attachment on a full ticket | 409, limit message | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-09 | API | AC-11 | Soft-remove then attempt download | Remove succeeds (metadata kept); download → 410 | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-10 | API | — (FR-10) | Remove attachment on a ticket not owned | 404, no hint | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-11 | API | AC-12 | `GET /api/requesters` with none active | 200, empty array | `server/tests/lab-02/requesters.api.test.ts` | Pass |
+| UI-01 | UI | AC-02 | My Tickets rendered with no Requester selected | Redirects to Requester Selection | `client/src/features/tickets/__tests__/MyTickets.test.tsx` | Pass |
+| UI-02 | UI | AC-12 | Requester Selection with empty mocked list | Empty-state message shown | `client/src/features/requester/__tests__/RequesterSelection.test.tsx` | Pass |
+| UI-03 | UI | AC-04 | Submit Create Ticket with Summary empty | Field message shown; API not called | `client/src/features/tickets/__tests__/CreateTicket.test.tsx` | Pass |
+| UI-04 | UI | AC-06 | Submit with API mock rejecting | Safe error shown; values retained | `client/src/features/tickets/__tests__/CreateTicket.test.tsx` | Pass |
+| UI-05 | UI | AC-07 | Select a 6 MB file in the picker | Inline error; file excluded from submit | `client/src/features/tickets/__tests__/AttachmentSection.test.tsx` | Pass |
+| UI-06 | UI | AC-09 | Requester switch (mocked context) | List re-fetches; filters clear | `client/src/features/tickets/__tests__/MyTickets.test.tsx` | Pass |
+| UI-07 | UI | AC-11 | Ticket Detail with active + removed attachment | Removed item shows metadata, no Download | `client/src/features/tickets/__tests__/RequesterTicketDetail.test.tsx` | Pass |
+| STYLE-01 | UI Style | ui-spec §3 | Required field shows `is-invalid` class on failed validation; Requester field shows `field-readonly` | Class assertions pass | `client/tests/lab-02/CreateTicket.style.test.tsx` | Pass |
+| STYLE-02 | UI Style | ui-spec §4 | Submit button shows busy/disabled state while `state === "submitting"` | Button disabled with "Submitting…" label | `client/tests/lab-02/CreateTicket.style.test.tsx` | Pass |
+| VISUAL-01 | Responsive | AC-05 | Playwright screenshots of all 3 screens at desktop/tablet/mobile | Saved to `artifacts/lab-02/screenshots/`; checklist passes | `e2e/lab-02/visual.spec.ts` | Pass |
+| E2E-01 | E2E | AC-01, AC-09 | Select Requester → create ticket with attachment → find in My Tickets → open Detail | Ticket Number visible throughout; attachment listed | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-02 | E2E | AC-03 | Requester A creates a ticket; Requester B tries direct URL access | Access blocked | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 
 ## 3. Acceptance-Criterion Traceability
 
@@ -76,9 +76,9 @@ cd e2e && npx playwright test
 
 _Filled in once implementation is complete, run from `main`:_
 ```
-server: X/X passing
-client: X/X passing
-e2e:    X/X passing
+server: 28/28 passing
+client: 18/18 passing
+e2e:    12/12 passing
 ```
 
 ## 7. Known Limitations or Deferred Tests

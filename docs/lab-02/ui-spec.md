@@ -92,9 +92,9 @@ only state indicator; 4.5:1 minimum text contrast.
 
 ## 10. Visual Checklist
 
-- [ ] No clipped labels/buttons at any viewport
-- [ ] No overlapping messages/badges
-- [ ] No unintended horizontal scroll
-- [ ] Read-only fields visually distinct from editable ones
-- [ ] Badge colors match §1 exactly, with text labels
-- [ ] Keyboard focus indicator visible throughout Create Ticket
+- [X] No clipped labels/buttons at any viewport
+- [X] No overlapping messages/badges
+- [X] No unintended horizontal scroll
+- [X] Read-only fields visually distinct from editable ones
+- [X] Badge colors match §1 exactly, with text labels
+- [X] Keyboard focus indicator visible throughout Create Ticket
