@@ -17,13 +17,24 @@ model Category {
   tickets   Ticket[]
 }
 
-model RequesterUser {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  tickets   Ticket[]
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMIN
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               Role     @default(REQUESTER)
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  tickets      Ticket[]        @relation("RequesterTickets")
+  ownedTickets Ticket[]        @relation("OwnedTickets")
 }
 
 model RelatedSystem {
@@ -47,8 +58,10 @@ enum TicketStatus {
 model Ticket {
   id                Int               @id @default(autoincrement())
   ticketNumber      String            @unique
-  requesterId       Int
-  requester         RequesterUser     @relation(fields: [requesterId], references: [id])
+  requesterId     Int
+  requester       User     @relation("RequesterTickets", fields: [requesterId], references: [id])
+  ticketOwnerId   Int?
+  ticketOwner     User?    @relation("OwnedTickets", fields: [ticketOwnerId], references: [id])
   categoryId        Int
   category          Category          @relation(fields: [categoryId], references: [id])
   relatedSystemId   Int
