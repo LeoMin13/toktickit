@@ -166,3 +166,52 @@ export async function removeAttachment(
     throw new Error(body.error ?? "Unable to remove attachment");
   }
 }
+
+export interface CurrentUser {
+  id: number;
+  name: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMIN";
+  mustChangePassword: boolean;
+}
+
+export async function login(email: string, password: string): Promise<CurrentUser> {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Login failed");
+  }
+  return res.json();
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+}
+
+export async function fetchMe(): Promise<CurrentUser | null> {
+  const res = await fetch(`${API_URL}/api/auth/me`, { credentials: "include" });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error("Unable to load current user");
+  return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.error ?? "Unable to change password") as Error & {
+      fields?: Record<string, string>;
+    };
+    err.fields = body.fields;
+    throw err;
+  }
+}

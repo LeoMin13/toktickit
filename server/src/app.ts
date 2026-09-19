@@ -1,25 +1,37 @@
 import type { NextFunction } from "express";
-import { generateTicketNumber, generateUniqueTicketNumber } from "./services/ticketNumber.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
-import { getPrisma } from "./prisma.js";
-import fs from "node:fs";
-import { upload } from "./middleware/upload.js";
 import multer from "multer";
 import path from "node:path";
+import fs from "node:fs";
 
-// getPrisma() is your lazy database handle. Call it INSIDE a route when you
-// need the DB (Issue 4). It is intentionally unused until then.
-// void getPrisma;
+import { getPrisma } from "./prisma.js";
+import { generateUniqueTicketNumber } from "./services/ticketNumber.js";
+import { upload } from "./middleware/upload.js";
+import { sessionMiddleware } from "./middleware/session.js";
+import { hashPassword, verifyPassword } from "./services/password.js";
 
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+  exposedHeaders: ["Content-Disposition"],
+}));
 app.use(express.json());
+app.use(sessionMiddleware);
 
+// ---------------------------------------------------------------------------
+// Middleware
+// ---------------------------------------------------------------------------
 
+// LEGACY (Lab 2): still reads RequesterUser via X-Requester-Id.
+// TODO(Issue 5): remove this entirely once Lab 2 routes are migrated to
+// requireAuth() / the authenticated User model. Left in place for now so
+// the file still compiles; the Lab 2 routes below will 500 at runtime
+// until Issue 5 lands — this is a known, tracked regression, not new.
 async function requireRequester(req: Request, res: Response, next: NextFunction) {
   const headerVal = req.header("X-Requester-Id");
   const requesterId = headerVal ? Number(headerVal) : NaN;
@@ -28,7 +40,7 @@ async function requireRequester(req: Request, res: Response, next: NextFunction)
     return res.status(401).json({ error: "Missing or invalid X-Requester-Id" });
   }
 
-  const requester = await getPrisma().requesterUser.findUnique({ where: { id: requesterId } });
+  const requester = await (getPrisma() as any).requesterUser.findUnique({ where: { id: requesterId } });
   if (!requester || !requester.isActive) {
     return res.status(401).json({ error: "Missing or invalid X-Requester-Id" });
   }
@@ -69,11 +81,35 @@ async function requireOwnedAttachment(req: Request, res: Response, next: NextFun
   next();
 }
 
+// Lab 3: real authentication middleware, based on the session, not a header.
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const userId = req.session.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  const user = await getPrisma().user.findUnique({ where: { id: userId } });
+  if (!user || !user.isActive) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  res.locals.currentUser = user;
+  next();
+}
+
+function requireNoPendingPasswordChange(req: Request, res: Response, next: NextFunction) {
+  const user = res.locals.currentUser;
+  if (user.mustChangePassword) {
+    return res.status(403).json({ error: "Password change required" });
+  }
+  next();
+}
+
+// ---------------------------------------------------------------------------
+// Health / reference data (Lab 1 & 2)
+// ---------------------------------------------------------------------------
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", service: "TokTickIT API" });
 });
-
 
 app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
@@ -87,10 +123,10 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   }
 });
 
-
+// LEGACY (Lab 2): TODO(Issue 5): replace with /api/admin/users or remove.
 app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
-    const requesters = await getPrisma().requesterUser.findMany({
+    const requesters = await (getPrisma() as any).requesterUser.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true },
@@ -100,7 +136,6 @@ app.get("/api/requesters", async (_req: Request, res: Response) => {
     res.status(500).json({ error: "Unable to load requesters" });
   }
 });
-
 
 app.get("/api/related-systems", async (_req: Request, res: Response) => {
   try {
@@ -115,6 +150,89 @@ app.get("/api/related-systems", async (_req: Request, res: Response) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Authentication (Lab 3, Issue 3)
+// ---------------------------------------------------------------------------
+
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+  const { email, password } = req.body ?? {};
+  if (typeof email !== "string" || typeof password !== "string") {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
+
+  const user = await getPrisma().user.findUnique({ where: { email } });
+  if (!user || !user.isActive) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
+
+  const valid = await verifyPassword(password, user.passwordHash);
+  if (!valid) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
+
+  req.session.userId = user.id;
+  res.status(200).json({
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  });
+});
+
+app.post("/api/auth/logout", (req: Request, res: Response) => {
+  req.session.destroy(() => {
+    res.status(200).json({});
+  });
+});
+
+app.get("/api/auth/me", requireAuth, (_req: Request, res: Response) => {
+  const user = res.locals.currentUser;
+  res.status(200).json({
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  });
+});
+
+app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Response) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+  const user = res.locals.currentUser;
+
+  if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+    return res.status(400).json({ error: "Validation failed" });
+  }
+
+  const validCurrent = await verifyPassword(currentPassword, user.passwordHash);
+  if (!validCurrent) {
+    return res.status(401).json({ error: "Current password is incorrect." });
+  }
+
+  if (
+    newPassword.length < 8 ||
+    !/[A-Z]/.test(newPassword) ||
+    !/[a-z]/.test(newPassword) ||
+    !/[0-9]/.test(newPassword) ||
+    !/[^A-Za-z0-9]/.test(newPassword)
+  ) {
+    return res.status(400).json({
+      error: "Validation failed",
+      fields: { newPassword: "Password does not meet the required rules." },
+    });
+  }
+
+  const newHash = await hashPassword(newPassword);
+  await getPrisma().user.update({
+    where: { id: user.id },
+    data: { passwordHash: newHash, mustChangePassword: false },
+  });
+
+  res.status(200).json({ mustChangePassword: false });
+});
+
+// ---------------------------------------------------------------------------
+// Ticket creation (Lab 2, still X-Requester-Id based — migrates in Issue 5)
+// ---------------------------------------------------------------------------
 
 app.post("/api/tickets", requireRequester, async (req: Request, res: Response) => {
   const { categoryId, relatedSystemId, summary, description, requestedPriority } = req.body ?? {};
@@ -175,6 +293,10 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
   }
 });
 
+// ---------------------------------------------------------------------------
+// Attachments (Lab 2, still X-Requester-Id based — migrates in Issue 5)
+// ---------------------------------------------------------------------------
+
 app.post(
   "/api/tickets/:id/attachments",
   requireRequester,
@@ -182,7 +304,7 @@ app.post(
   (req: Request, res: Response, next: NextFunction) => {
     upload.single("file")(req, res, (err: unknown) => {
       if (err) {
-        req.resume(); // vide le flux restant pour éviter un ECONNRESET côté client
+        req.resume(); // drain the remaining stream to avoid client-side ECONNRESET
         if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
           return res.status(413).json({ error: "File exceeds 5 MB limit" });
         }
@@ -285,6 +407,10 @@ app.delete(
     });
   }
 );
+
+// ---------------------------------------------------------------------------
+// My Tickets (Lab 2, still X-Requester-Id based — migrates in Issue 5)
+// ---------------------------------------------------------------------------
 
 const SORTABLE_FIELDS = new Set(["createdAt", "updatedAt"]);
 const PAGE_SIZES = new Set([10, 25, 50]);
