@@ -4,13 +4,13 @@ import cors from "cors";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
-
 import { getPrisma } from "./prisma.js";
 import { generateUniqueTicketNumber } from "./services/ticketNumber.js";
-
 import { upload } from "./middleware/upload.js";
 import { sessionMiddleware } from "./middleware/session.js";
 import { hashPassword, verifyPassword } from "./services/password.js";
+import { requireRole } from "./middleware/authorization.js";
+
 
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.

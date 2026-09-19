@@ -11,13 +11,14 @@ regression, responsive/visual, E2E.
 | Test ID | Type | AC | What It Tests | Expected Result | Test File | Final |
 |---|---|---|---|---|---|---|
 | UNIT-01 | Unit | BR-15 | Password hashing never stores plaintext | Hash ≠ raw input, verify() works | `server/src/__tests__/password.test.ts` | Pending |
+| UNIT-02 | Unit | — | requireRole middleware: allow/deny by role, 401 if unauthenticated | Correct next()/403/401 behavior | `server/tests/lab-03/authorization.test.ts` | Pass |
 | API-01 | API | AC-01 | Valid login | 200, correct role returned | `server/tests/lab-03/auth.api.test.ts` | Pending |
 | API-02 | API | BR-01 | Invalid password / inactive account | 401, identical generic message | `server/tests/lab-03/auth.api.test.ts` | Pending |
 | API-03 | API | AC-10 | Protected route after logout | 401 | `server/tests/lab-03/auth.api.test.ts` | Pending |
 | API-04 | API | AC-02 | Access other endpoint while mustChangePassword | 403/redirect until password changed | `server/tests/lab-03/auth.api.test.ts` | Pending |
-| API-05 | API | AC-03 | Requester supplies foreign requesterId in body | Ignored; own data only returned | `server/tests/lab-03/authorization.api.test.ts` | Pending |
-| API-06 | API | AC-04 | Requester calls Internal Notes endpoint | 403, no note content | `server/tests/lab-03/authorization.api.test.ts` | Pending |
-| API-07 | API | AC-12 | Non-Admin calls Admin endpoint | 403 | `server/tests/lab-03/authorization.api.test.ts` | Pending |
+| API-05 | API | AC-03 | Requester supplies foreign requesterId in body | Ignored; own data only returned | `server/tests/lab-03/authorization.api.test.ts` | Pending (Issue 5) |
+| API-06 | API | AC-04 | Requester calls Internal Notes endpoint | 403, no note content | `server/tests/lab-03/authorization.api.test.ts` | Pending (Issue 8) |
+| API-07 | API | AC-12 | Non-Admin calls Admin endpoint | 403 | `server/tests/lab-03/authorization.api.test.ts` | Pending (Issue 9) |
 | API-08 | API | FR-07 | Staff Queue search/filter/sort/pagination | Correct filtered/paginated data | `server/tests/lab-03/staff-queue.api.test.ts` | Pending |
 | API-09 | API | AC-05 | Claim an unassigned ticket | Owner set to caller | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
 | API-10 | API | AC-06 | Disallowed status transition | 400 | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
