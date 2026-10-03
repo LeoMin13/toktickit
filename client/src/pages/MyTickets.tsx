@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchTickets, fetchCategories } from "../api.js";
-import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 import type { Category, PaginatedTickets, RequestedPriority, TicketListQuery } from "../types.js";
 
 type LoadState = "loading" | "loaded" | "empty" | "no-results" | "error";
@@ -14,7 +14,7 @@ const DEFAULT_QUERY: TicketListQuery = {
 };
 
 export default function MyTickets() {
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const [state, setState] = useState<LoadState>("loading");
   const [result, setResult] = useState<PaginatedTickets | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -31,17 +31,17 @@ export default function MyTickets() {
   useEffect(() => {
     setQuery(DEFAULT_QUERY);
     setSearchInput("");
-  }, [requester?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     load();
-  }, [query, requester?.id]);
+  }, [query, user?.id]);
 
   async function load() {
-    if (!requester) return;
+    if (!user) return;
     setState("loading");
     try {
-      const res = await fetchTickets(query, requester.id);
+      const res = await fetchTickets(query);
       setResult(res);
       if (res.data.length === 0) {
         const hasActiveFilter = Boolean(

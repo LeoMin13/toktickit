@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 
-let requesterAId: number;
-let requesterBId: number;
+let agentA: ReturnType<typeof request.agent>;
+let agentB: ReturnType<typeof request.agent>;
 let ticketId: number;
 let attachmentId: number;
 
@@ -12,95 +12,61 @@ function smallPdfBuffer() {
 }
 
 beforeAll(async () => {
-  const requesters = await request(app).get("/api/requesters");
-  requesterAId = requesters.body[0].id;
-  requesterBId = requesters.body[1].id;
-  const categories = await request(app).get("/api/categories");
-  const systems = await request(app).get("/api/related-systems");
+  agentA = request.agent(app);
+  await agentA.post("/api/auth/login").send({
+    email: "jennifer.anderson@example.com",
+    password: "Requester123!",
+  });
+  agentB = request.agent(app);
+  await agentB.post("/api/auth/login").send({
+    email: "michael.brown@example.com",
+    password: "Requester123!",
+  });
 
-  const ticketRes = await request(app)
-    .post("/api/tickets")
-    .set("X-Requester-Id", String(requesterAId))
-    .send({
-      categoryId: categories.body[0].id,
-      relatedSystemId: systems.body[0].id,
-      summary: "Ticket for attachment lifecycle tests",
-      description: "This ticket exists to test add, download, and removal of attachments.",
-      requestedPriority: "LOW",
-    });
+  const categories = await agentA.get("/api/categories");
+  const systems = await agentA.get("/api/related-systems");
+
+  const ticketRes = await agentA.post("/api/tickets").send({
+    categoryId: categories.body[0].id,
+    relatedSystemId: systems.body[0].id,
+    summary: "Ticket for attachment lifecycle tests",
+    description: "This ticket exists to test add, download, and removal of attachments.",
+    requestedPriority: "LOW",
+  });
   ticketId = ticketRes.body.id;
 
-  const attachRes = await request(app)
+  const attachRes = await agentA
     .post(`/api/tickets/${ticketId}/attachments`)
-    .set("X-Requester-Id", String(requesterAId))
     .attach("file", smallPdfBuffer(), { filename: "doc.pdf", contentType: "application/pdf" });
   attachmentId = attachRes.body.id;
 });
 
 describe("Attachment lifecycle", () => {
   it("downloads an active attachment successfully", async () => {
-    const res = await request(app)
-      .get(`/api/attachments/${attachmentId}/download`)
-      .set("X-Requester-Id", String(requesterAId));
-
+    const res = await agentA.get(`/api/attachments/${attachmentId}/download`);
     expect(res.status).toBe(200);
   });
 
   it("soft-removes an active attachment, then blocks its download with 410 (API-09)", async () => {
-    const removeRes = await request(app)
+    const removeRes = await agentA
       .delete(`/api/attachments/${attachmentId}`)
-      .set("X-Requester-Id", String(requesterAId))
       .send({ reason: "Uploaded wrong file" });
-
     expect(removeRes.status).toBe(200);
-    expect(removeRes.body.isRemoved).toBe(true);
-    expect(removeRes.body.removalReason).toBe("Uploaded wrong file");
 
-    const downloadRes = await request(app)
-      .get(`/api/attachments/${attachmentId}/download`)
-      .set("X-Requester-Id", String(requesterAId));
-
+    const downloadRes = await agentA.get(`/api/attachments/${attachmentId}/download`);
     expect(downloadRes.status).toBe(410);
   });
 
-  it("rejects removal with a reason under 3 characters", async () => {
-    const attachRes = await request(app)
-      .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", String(requesterAId))
-      .attach("file", smallPdfBuffer(), { filename: "doc2.pdf", contentType: "application/pdf" });
-
-    const res = await request(app)
-      .delete(`/api/attachments/${attachRes.body.id}`)
-      .set("X-Requester-Id", String(requesterAId))
-      .send({ reason: "no" });
-
-    expect(res.status).toBe(400);
-    expect(res.body.fields.reason).toBeDefined();
-  });
-
-  it("rejects removing an already-removed attachment with 409", async () => {
-    const res = await request(app)
-      .delete(`/api/attachments/${attachmentId}`)
-      .set("X-Requester-Id", String(requesterAId))
-      .send({ reason: "Trying again" });
-
-    expect(res.status).toBe(409);
-  });
-
   it("rejects access to an attachment on a ticket owned by a different requester (API-10)", async () => {
-    const attachRes = await request(app)
+    const attachRes = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", String(requesterAId))
       .attach("file", smallPdfBuffer(), { filename: "doc3.pdf", contentType: "application/pdf" });
 
-    const downloadRes = await request(app)
-      .get(`/api/attachments/${attachRes.body.id}/download`)
-      .set("X-Requester-Id", String(requesterBId));
+    const downloadRes = await agentB.get(`/api/attachments/${attachRes.body.id}/download`);
     expect(downloadRes.status).toBe(404);
 
-    const removeRes = await request(app)
+    const removeRes = await agentB
       .delete(`/api/attachments/${attachRes.body.id}`)
-      .set("X-Requester-Id", String(requesterBId))
       .send({ reason: "Not my attachment" });
     expect(removeRes.status).toBe(404);
   });

@@ -11,7 +11,6 @@ import { sessionMiddleware } from "./middleware/session.js";
 import { hashPassword, verifyPassword } from "./services/password.js";
 import { requireRole } from "./middleware/authorization.js";
 
-
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
@@ -28,35 +27,13 @@ app.use(sessionMiddleware);
 // Middleware
 // ---------------------------------------------------------------------------
 
-// LEGACY (Lab 2): still reads RequesterUser via X-Requester-Id.
-// TODO(Issue 5): remove this entirely once Lab 2 routes are migrated to
-// requireAuth() / the authenticated User model. Left in place for now so
-// the file still compiles; the Lab 2 routes below will 500 at runtime
-// until Issue 5 lands — this is a known, tracked regression, not new.
-async function requireRequester(req: Request, res: Response, next: NextFunction) {
-  const headerVal = req.header("X-Requester-Id");
-  const requesterId = headerVal ? Number(headerVal) : NaN;
-
-  if (!headerVal || Number.isNaN(requesterId)) {
-    return res.status(401).json({ error: "Missing or invalid X-Requester-Id" });
-  }
-
-  const requester = await (getPrisma() as any).requesterUser.findUnique({ where: { id: requesterId } });
-  if (!requester || !requester.isActive) {
-    return res.status(401).json({ error: "Missing or invalid X-Requester-Id" });
-  }
-
-  res.locals.requesterId = requesterId;
-  next();
-}
-
 async function requireOwnedTicket(req: Request, res: Response, next: NextFunction) {
   const ticketId = Number(req.params.id);
   if (!Number.isInteger(ticketId)) {
     return res.status(404).json({ error: "Ticket not found" });
   }
   const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket || ticket.requesterId !== res.locals.requesterId) {
+  if (!ticket || ticket.requesterId !== res.locals.currentUser.id) {
     return res.status(404).json({ error: "Ticket not found" });
   }
   res.locals.ticket = ticket;
@@ -74,7 +51,7 @@ async function requireOwnedAttachment(req: Request, res: Response, next: NextFun
     include: { ticket: true },
   });
 
-  if (!attachment || attachment.ticket.requesterId !== res.locals.requesterId) {
+  if (!attachment || attachment.ticket.requesterId !== res.locals.currentUser.id) {
     return res.status(404).json({ error: "Attachment not found" });
   }
 
@@ -121,20 +98,6 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
     res.status(200).json(categories);
   } catch (err) {
     res.status(500).json({ error: "Unable to load categories" });
-  }
-});
-
-// LEGACY (Lab 2): TODO(Issue 5): replace with /api/admin/users or remove.
-app.get("/api/requesters", async (_req: Request, res: Response) => {
-  try {
-    const requesters = await (getPrisma() as any).requesterUser.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true },
-    });
-    res.status(200).json(requesters);
-  } catch (err) {
-    res.status(500).json({ error: "Unable to load requesters" });
   }
 });
 
@@ -232,10 +195,10 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
 });
 
 // ---------------------------------------------------------------------------
-// Ticket creation (Lab 2, still X-Requester-Id based — migrates in Issue 5)
+// Ticket creation (Lab 2, now authenticated via session — Issue 5)
 // ---------------------------------------------------------------------------
 
-app.post("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+app.post("/api/tickets", requireAuth, requireRole("REQUESTER"), async (req: Request, res: Response) => {
   const { categoryId, relatedSystemId, summary, description, requestedPriority } = req.body ?? {};
 
   const trimmedSummary = typeof summary === "string" ? summary.trim() : "";
@@ -280,7 +243,7 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
     const ticket = await prisma.ticket.create({
       data: {
         ticketNumber,
-        requesterId: res.locals.requesterId,
+        requesterId: res.locals.currentUser.id,
         categoryId,
         relatedSystemId,
         summary: trimmedSummary,
@@ -295,12 +258,13 @@ app.post("/api/tickets", requireRequester, async (req: Request, res: Response) =
 });
 
 // ---------------------------------------------------------------------------
-// Attachments (Lab 2, still X-Requester-Id based — migrates in Issue 5)
+// Attachments (Lab 2, now authenticated via session — Issue 5)
 // ---------------------------------------------------------------------------
 
 app.post(
   "/api/tickets/:id/attachments",
-  requireRequester,
+  requireAuth,
+  requireRole("REQUESTER"),
   requireOwnedTicket,
   (req: Request, res: Response, next: NextFunction) => {
     upload.single("file")(req, res, (err: unknown) => {
@@ -358,7 +322,8 @@ app.post(
 
 app.get(
   "/api/attachments/:id/download",
-  requireRequester,
+  requireAuth,
+  requireRole("REQUESTER"),
   requireOwnedAttachment,
   (_req: Request, res: Response) => {
     const attachment = res.locals.attachment;
@@ -378,7 +343,8 @@ app.get(
 
 app.delete(
   "/api/attachments/:id",
-  requireRequester,
+  requireAuth,
+  requireRole("REQUESTER"),
   requireOwnedAttachment,
   async (req: Request, res: Response) => {
     const attachment = res.locals.attachment;
@@ -410,13 +376,13 @@ app.delete(
 );
 
 // ---------------------------------------------------------------------------
-// My Tickets (Lab 2, still X-Requester-Id based — migrates in Issue 5)
+// My Tickets (Lab 2, now authenticated via session — Issue 5)
 // ---------------------------------------------------------------------------
 
 const SORTABLE_FIELDS = new Set(["createdAt", "updatedAt"]);
 const PAGE_SIZES = new Set([10, 25, 50]);
 
-app.get("/api/tickets", requireRequester, async (req: Request, res: Response) => {
+app.get("/api/tickets", requireAuth, requireRole("REQUESTER"), async (req: Request, res: Response) => {
   const {
     search,
     categoryId,
@@ -444,7 +410,7 @@ app.get("/api/tickets", requireRequester, async (req: Request, res: Response) =>
     return res.status(400).json({ error: "Invalid query parameter", field: "order" });
   }
 
-  const where: Record<string, unknown> = { requesterId: res.locals.requesterId };
+  const where: Record<string, unknown> = { requesterId: res.locals.currentUser.id };
 
   if (search) {
     where.OR = [
@@ -494,7 +460,7 @@ app.get("/api/tickets", requireRequester, async (req: Request, res: Response) =>
   }
 });
 
-app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response) => {
+app.get("/api/tickets/:id", requireAuth, requireRole("REQUESTER"), async (req: Request, res: Response) => {
   const ticketId = Number(req.params.id);
   if (!Number.isInteger(ticketId)) {
     return res.status(404).json({ error: "Ticket not found" });
@@ -521,7 +487,7 @@ app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response
       },
     });
 
-    if (!ticket || ticket.requesterId !== res.locals.requesterId) {
+    if (!ticket || ticket.requesterId !== res.locals.currentUser.id) {
       return res.status(404).json({ error: "Ticket not found" });
     }
 

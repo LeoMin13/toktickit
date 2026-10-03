@@ -16,7 +16,7 @@ export default function Login() {
     setError("");
     try {
       await login(email, password);
-      navigate("/");
+      navigate("/tickets");
     } catch (err) {
       setError((err as Error).message);
     } finally {

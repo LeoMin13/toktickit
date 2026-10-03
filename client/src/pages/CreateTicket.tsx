@@ -1,6 +1,6 @@
 import { useEffect, useState, FormEvent } from "react";
 import { fetchCategories, fetchRelatedSystems, createTicket } from "../api.js";
-import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 import type { Category, RelatedSystem, RequestedPriority, Ticket } from "../types.js";
 import AttachmentPicker, { PendingFile } from "../components/AttachmentPicker.js";
 import { uploadAttachment } from "../api.js";
@@ -9,7 +9,7 @@ type RefState = "loading" | "loaded" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
 
 export default function CreateTicket() {
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const [refState, setRefState] = useState<RefState>("loading");
   const [categories, setCategories] = useState<Category[]>([]);
   const [relatedSystems, setRelatedSystems] = useState<RelatedSystem[]>([]);
@@ -79,7 +79,6 @@ export default function CreateTicket() {
             description: description.trim(),
             requestedPriority,
             },
-            requester!.id
         );
 
         // BR-08: ticket is saved even if some attachment uploads fail
@@ -87,7 +86,7 @@ export default function CreateTicket() {
         const validFiles = pendingFiles.filter((f) => !f.error);
         for (const pf of validFiles) {
             try {
-            await uploadAttachment(ticket.id, pf.file, requester!.id);
+            await uploadAttachment(ticket.id, pf.file);
             } catch (uploadErr) {
             failures.push(`${pf.file.name}: ${(uploadErr as Error).message}`);
             }
@@ -155,7 +154,7 @@ export default function CreateTicket() {
       <div className="mb-3">
         <div className="form-label fw-semibold">Requester</div>
         <div className="p-2 rounded field-readonly">
-          {requester?.name}
+          {user?.name}
         </div>
       </div>
       <div className="mb-3">

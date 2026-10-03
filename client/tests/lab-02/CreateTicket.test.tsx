@@ -2,19 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import CreateTicket from "../../src/pages/CreateTicket.js";
-import { RequesterProvider } from "../../src/context/RequesterContext.js";
+import { AuthProvider } from "../../src/context/AuthContext.js";
 import * as api from "../../src/api.js";
 
 function renderWithProviders() {
   sessionStorage.setItem(
-    "toktickit.devRequesterId",
+    "toktickit.devAuthId",
     JSON.stringify({ id: 1, name: "Jennifer Anderson", email: "j@example.com" })
   );
   return render(
     <BrowserRouter>
-      <RequesterProvider>
+      <AuthProvider>
         <CreateTicket />
-      </RequesterProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
@@ -23,6 +23,7 @@ beforeEach(() => {
   sessionStorage.clear();
   vi.spyOn(api, "fetchCategories").mockResolvedValue([{ id: 1, name: "Hardware" }]);
   vi.spyOn(api, "fetchRelatedSystems").mockResolvedValue([{ id: 1, name: "Corporate Laptop" }]);
+  vi.spyOn(api, "createTicket").mockRejectedValue(new Error("Backend unavailable"));
 });
 
 describe("CreateTicket", () => {

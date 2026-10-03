@@ -28,11 +28,6 @@ export async function checkSystem(): Promise<SystemStatus> {
   return { online: true, categories };
 }
 
-export async function fetchRequesters(): Promise<Requester[]> {
-  const res = await fetch(`${API_URL}/api/requesters`);
-  if (!res.ok) throw new Error("Unable to load requesters");
-  return res.json();
-}
 
 export async function fetchCategories(): Promise<Category[]> {
   const res = await fetch(`${API_URL}/api/categories`);
@@ -46,12 +41,12 @@ export async function fetchRelatedSystems(): Promise<RelatedSystem[]> {
   return res.json();
 }
 
-export async function createTicket(input: CreateTicketInput, requesterId: number): Promise<Ticket> {
+export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "X-Requester-Id": String(requesterId),
     },
     body: JSON.stringify(input),
   });
@@ -70,15 +65,15 @@ export async function createTicket(input: CreateTicketInput, requesterId: number
 
 export async function uploadAttachment(
   ticketId: number,
-  file: File,
-  requesterId: number
+  file: File
 ): Promise<Attachment> {
   const formData = new FormData();
   formData.append("file", file);
 
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
+    headers: {},
     body: formData,
   });
 
@@ -90,8 +85,7 @@ export async function uploadAttachment(
 }
 
 export async function fetchTickets(
-  query: TicketListQuery,
-  requesterId: number
+  query: TicketListQuery
 ): Promise<PaginatedTickets> {
   const params = new URLSearchParams();
   if (query.search) params.set("search", query.search);
@@ -104,7 +98,8 @@ export async function fetchTickets(
   params.set("pageSize", String(query.pageSize ?? 10));
 
   const res = await fetch(`${API_URL}/api/tickets?${params.toString()}`, {
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
+    headers: {},
   });
 
   if (!res.ok) throw new Error("Unable to load tickets");
@@ -117,9 +112,10 @@ export interface TicketDetail extends Ticket {
   attachments: Attachment[];
 }
 
-export async function fetchTicketDetail(ticketId: number, requesterId: number): Promise<TicketDetail> {
+export async function fetchTicketDetail(ticketId: number): Promise<TicketDetail> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
+    headers: {},
   });
   if (res.status === 404) throw new Error("Ticket not found");
   if (!res.ok) throw new Error("Unable to load ticket");
@@ -128,10 +124,10 @@ export async function fetchTicketDetail(ticketId: number, requesterId: number): 
 
 export async function downloadAttachment(
   attachmentId: number,
-  requesterId: number
 ): Promise<{ blob: Blob; filename: string }> {
   const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/download`, {
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
+    headers: {},
   });
 
   if (!res.ok) {
@@ -149,14 +145,13 @@ export async function downloadAttachment(
 
 export async function removeAttachment(
   attachmentId: number,
-  reason: string,
-  requesterId: number
+  reason: string
 ): Promise<void> {
   const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
     method: "DELETE",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "X-Requester-Id": String(requesterId),
     },
     body: JSON.stringify({ reason }),
   });

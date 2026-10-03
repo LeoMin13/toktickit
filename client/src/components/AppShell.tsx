@@ -1,13 +1,13 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 
 export default function AppShell() {
-  const { requester, clearRequester } = useRequester();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  function handleChangeRequester() {
-    clearRequester();
-    navigate("/");
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
   }
 
   return (
@@ -18,25 +18,21 @@ export default function AppShell() {
           <NavLink
             to="/tickets"
             end
-            className={({ isActive }) =>
-              `nav-link text-white ${isActive ? "nav-link-active" : ""}`
-            }
+            className={({ isActive }) => `nav-link text-white ${isActive ? "nav-link-active" : ""}`}
           >
             My Tickets
           </NavLink>
           <NavLink
             to="/tickets/new"
-            className={({ isActive }) =>
-              `nav-link text-white ${isActive ? "nav-link-active" : ""}`
-            }
+            className={({ isActive }) => `nav-link text-white ${isActive ? "nav-link-active" : ""}`}
           >
             Create Ticket
           </NavLink>
         </nav>
         <div className="d-flex align-items-center gap-2 text-white">
-          <span>{requester?.name}</span>
-          <button className="btn btn-outline-light btn-sm" onClick={handleChangeRequester}>
-            Change Requester
+          <span>{user?.name} ({user?.role})</span>
+          <button className="btn btn-outline-light btn-sm" onClick={handleLogout}>
+            Logout
           </button>
         </div>
       </header>

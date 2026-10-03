@@ -1,13 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchTicketDetail, TicketDetail as TicketDetailType, uploadAttachment, removeAttachment, downloadAttachment } from "../api.js";
-import { useRequester } from "../context/RequesterContext.js";
-
+import { useAuth } from "../context/AuthContext.js";
 type LoadState = "loading" | "loaded" | "not-found" | "error";
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const [state, setState] = useState<LoadState>("loading");
   const [ticket, setTicket] = useState<TicketDetailType | null>(null);
   const [uploadError, setUploadError] = useState("");
@@ -16,13 +15,13 @@ export default function TicketDetail() {
 
   useEffect(() => {
     load();
-  }, [id, requester?.id]);
+  }, [id, user?.id]);
 
   async function load() {
-    if (!requester || !id) return;
+    if (!user || !id) return;
     setState("loading");
     try {
-      const data = await fetchTicketDetail(Number(id), requester.id);
+      const data = await fetchTicketDetail(Number(id));
       setTicket(data);
       setState("loaded");
     } catch (err) {
@@ -36,11 +35,11 @@ export default function TicketDetail() {
 
   async function handleAddAttachment(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !ticket || !requester) return;
+    if (!file || !ticket || !user) return;
 
     setUploadError("");
     try {
-      await uploadAttachment(ticket.id, file, requester.id);
+      await uploadAttachment(ticket.id, file);
       await load(); // reload to show the new attachment
     } catch (err) {
       setUploadError((err as Error).message);
@@ -50,7 +49,7 @@ export default function TicketDetail() {
   }
 
   async function handleRemove(attachmentId: number) {
-    if (!requester) return;
+    if (!user) return;
     const reason = window.prompt("Reason for removing this attachment (minimum 3 characters):");
     if (reason === null) return; // cancelled
     if (reason.trim().length < 3) {
@@ -60,7 +59,7 @@ export default function TicketDetail() {
 
     setRemovingId(attachmentId);
     try {
-      await removeAttachment(attachmentId, reason.trim(), requester.id);
+      await removeAttachment(attachmentId, reason.trim());
       await load();
     } catch (err) {
       setUploadError((err as Error).message);
@@ -72,11 +71,11 @@ export default function TicketDetail() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   async function handleDownload(attachmentId: number) {
-    if (!requester) return;
+    if (!user) return;
     setDownloadingId(attachmentId);
     setUploadError("");
     try {
-      const { blob, filename } = await downloadAttachment(attachmentId, requester.id);
+      const { blob, filename } = await downloadAttachment(attachmentId);
       const url = URL.createObjectURL(blob);
       const tempLink = document.createElement("a");
       tempLink.href = url;

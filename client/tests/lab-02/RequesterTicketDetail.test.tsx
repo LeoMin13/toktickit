@@ -2,22 +2,21 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import TicketDetail from "../../src/pages/TicketDetail.js";
-import { RequesterProvider } from "../../src/context/RequesterContext.js";
+import { AuthProvider } from "../../src/context/AuthContext.js";
 import * as api from "../../src/api.js";
 
 function renderAt(path: string) {
-  sessionStorage.setItem(
-    "toktickit.devRequesterId",
-    JSON.stringify({ id: 1, name: "Jennifer Anderson", email: "j@example.com" })
-  );
+  vi.spyOn(api, "fetchMe").mockResolvedValue({
+    id: 1, name: "Jennifer Anderson", role: "REQUESTER", mustChangePassword: false,
+  });
   window.history.pushState({}, "", path);
   return render(
     <BrowserRouter>
-      <RequesterProvider>
+      <AuthProvider>
         <Routes>
           <Route path="/tickets/:id" element={<TicketDetail />} />
         </Routes>
-      </RequesterProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
