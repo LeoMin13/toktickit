@@ -82,3 +82,11 @@ export interface TicketListQuery {
   page?: number;
   pageSize?: number;
 }
+
+export interface Comment {
+  id: number;
+  content: string;
+  createdAt: string;
+  authorName: string;
+  authorRole: "REQUESTER" | "IT_STAFF" | "ADMIN";
+}

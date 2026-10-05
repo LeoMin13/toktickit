@@ -503,6 +503,7 @@ app.get("/api/tickets/:id", requireAuth, requireRole("REQUESTER"), async (req: R
       description: ticket.description,
       requestedPriority: ticket.requestedPriority,
       currentStatus: ticket.currentStatus,
+      problemAppearsResolved: ticket.problemAppearsResolved,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
       attachments: ticket.attachments,
@@ -511,5 +512,76 @@ app.get("/api/tickets/:id", requireAuth, requireRole("REQUESTER"), async (req: R
     res.status(500).json({ error: "Unable to load ticket" });
   }
 });
+
+app.post(
+  "/api/tickets/:id/comments",
+  requireAuth,
+  requireRole("REQUESTER"),
+  requireOwnedTicket,
+  async (req: Request, res: Response) => {
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    if (content.length === 0) {
+      return res.status(400).json({
+        error: "Validation failed",
+        fields: { content: "Comment cannot be empty" },
+      });
+    }
+
+    const comment = await getPrisma().publicComment.create({
+      data: {
+        ticketId: Number(req.params.id),
+        authorId: res.locals.currentUser.id,
+        content,
+      },
+      include: { author: { select: { name: true, role: true } } },
+    });
+
+    res.status(201).json({
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt,
+      authorName: comment.author.name,
+      authorRole: comment.author.role,
+    });
+  }
+);
+
+app.get(
+  "/api/tickets/:id/comments",
+  requireAuth,
+  requireRole("REQUESTER"),
+  requireOwnedTicket,
+  async (req: Request, res: Response) => {
+    const comments = await getPrisma().publicComment.findMany({
+      where: { ticketId: Number(req.params.id) },
+      orderBy: { createdAt: "asc" },
+      include: { author: { select: { name: true, role: true } } },
+    });
+
+    res.status(200).json(
+      comments.map((c) => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        authorName: c.author.name,
+        authorRole: c.author.role,
+      }))
+    );
+  }
+);
+
+app.patch(
+  "/api/tickets/:id/resolved",
+  requireAuth,
+  requireRole("REQUESTER"),
+  requireOwnedTicket,
+  async (req: Request, res: Response) => {
+    const updated = await getPrisma().ticket.update({
+      where: { id: Number(req.params.id) },
+      data: { problemAppearsResolved: true },
+    });
+    res.status(200).json({ problemAppearsResolved: updated.problemAppearsResolved });
+  }
+);
 
 export default app;

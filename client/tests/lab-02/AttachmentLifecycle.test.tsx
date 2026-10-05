@@ -70,6 +70,7 @@ describe("Attachment removal flow", () => {
           },
         ],
       });
+    vi.spyOn(api, "fetchComments").mockResolvedValue([]);
 
     const removeSpy = vi.spyOn(api, "removeAttachment").mockResolvedValue(undefined);
     vi.spyOn(window, "prompt").mockReturnValue("No longer needed");

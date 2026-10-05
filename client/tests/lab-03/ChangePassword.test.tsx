@@ -17,11 +17,13 @@ function renderChangePassword() {
 }
 
 describe("ChangePassword", () => {
-  it("keeps Continue disabled until all rules pass and passwords match", () => {
+    it("keeps Continue disabled until all rules pass and passwords match", async () => {
     renderChangePassword();
+    await waitFor(() => screen.getByText("Continue")); // flush AuthProvider's initial refresh()
+
     const continueButton = screen.getByText("Continue");
     expect(continueButton).toBeDisabled();
-
+    
     fireEvent.change(screen.getByLabelText(/Current/i), { target: { value: "Temp123!" } });
     fireEvent.change(screen.getByLabelText(/^New password/i), { target: { value: "weak" } });
     fireEvent.change(screen.getByLabelText(/Confirm/i), { target: { value: "weak" } });

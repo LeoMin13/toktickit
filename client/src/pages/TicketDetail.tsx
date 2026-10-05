@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchTicketDetail, TicketDetail as TicketDetailType, uploadAttachment, removeAttachment, downloadAttachment } from "../api.js";
 import { useAuth } from "../context/AuthContext.js";
+import { fetchComments, postComment, markProblemResolved } from "../api.js";
+import type { Comment } from "../types.js";
 type LoadState = "loading" | "loaded" | "not-found" | "error";
 
 export default function TicketDetail() {
@@ -12,6 +14,12 @@ export default function TicketDetail() {
   const [uploadError, setUploadError] = useState("");
   const [removingId, setRemovingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [resolvedMessage, setResolvedMessage] = useState("");
+
+
 
   useEffect(() => {
     load();
@@ -21,8 +29,12 @@ export default function TicketDetail() {
     if (!user || !id) return;
     setState("loading");
     try {
-      const data = await fetchTicketDetail(Number(id));
+      const [data, commentsData] = await Promise.all([
+        fetchTicketDetail(Number(id)),
+        fetchComments(Number(id)),
+      ]);
       setTicket(data);
+      setComments(commentsData);
       setState("loaded");
     } catch (err) {
       if ((err as Error).message === "Ticket not found") {
@@ -88,6 +100,31 @@ export default function TicketDetail() {
       setUploadError((err as Error).message);
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handlePostComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ticket || newComment.trim().length === 0) return;
+    setPostingComment(true);
+    try {
+      const comment = await postComment(ticket.id, newComment.trim());
+      setComments((prev) => [...prev, comment]);
+      setNewComment("");
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setPostingComment(false);
+    }
+  }
+
+  async function handleMarkResolved() {
+    if (!ticket) return;
+    try {
+      await markProblemResolved(ticket.id);
+      setResolvedMessage("Thanks — we've flagged this as resolved for IT Staff to confirm.");
+    } catch (err) {
+      setUploadError((err as Error).message);
     }
   }
 
@@ -217,6 +254,45 @@ export default function TicketDetail() {
           )}
         </div>
       </section>
+
+      <section className="card p-3 mt-4" aria-label="Public Comments">
+        <h2 className="h6 mb-3">Public Comments</h2>
+
+        <ul className="list-unstyled mb-3">
+          {comments.map((c) => (
+            <li key={c.id} className="p-2 rounded mb-2" style={{ backgroundColor: "#EAF6EF" }}>
+              <div className="d-flex justify-content-between">
+                <strong>{c.authorName}</strong>
+                <span className="small text-muted">{new Date(c.createdAt).toLocaleString()}</span>
+              </div>
+              <div>{c.content}</div>
+            </li>
+          ))}
+          {comments.length === 0 && <li className="text-muted small">No comments yet.</li>}
+        </ul>
+
+        <form onSubmit={handlePostComment} className="d-flex gap-2 mb-3">
+          <input
+            className="form-control"
+            placeholder="Add a public comment…"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+          />
+          <button className="btn btn-success" type="submit" disabled={postingComment}>
+            {postingComment ? "Posting…" : "Post"}
+          </button>
+        </form>
+
+        {!ticket.problemAppearsResolved ? (
+          <button className="btn btn-outline-success btn-sm" onClick={handleMarkResolved}>
+            Mark problem as resolved
+          </button>
+        ) : (
+          <p className="text-success small mb-0">✓ You've marked this problem as resolved.</p>
+        )}
+        {resolvedMessage && <p className="small text-muted mt-2">{resolvedMessage}</p>}
+      </section>
+
     </div>
   );
 }

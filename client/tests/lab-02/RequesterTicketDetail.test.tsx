@@ -61,6 +61,8 @@ describe("TicketDetail", () => {
       ],
     });
 
+    vi.spyOn(api, "fetchComments").mockResolvedValue([]);
+
     renderAt("/tickets/1");
 
     await waitFor(() => {

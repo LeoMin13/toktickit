@@ -4,6 +4,9 @@ import { BrowserRouter } from "react-router-dom";
 import CreateTicket from "../../src/pages/CreateTicket.js";
 import { AuthProvider } from "../../src/context/AuthContext.js";
 import * as api from "../../src/api.js";
+import { act } from "@testing-library/react";
+import { as } from "vitest/dist/chunks/reporters.nr4dxCkA.js";
+
 
 function renderWithProviders() {
   vi.spyOn(api, "fetchMe").mockResolvedValue({
@@ -80,18 +83,20 @@ describe("CreateTicket — Submit button busy state (STYLE-02)", () => {
     expect(screen.getByText("Submitting…")).toBeDisabled();
 
     // Resolve the pending create so the test doesn't leave a dangling promise
-    resolveCreate!({
-      id: 1,
-      ticketNumber: "TKT-2026-000001",
-      requesterId: 1,
-      categoryId: 1,
-      relatedSystemId: 1,
-      summary: "Laptop battery drains quickly",
-      description: "A description that is definitely long enough for validation.",
-      requestedPriority: "MEDIUM",
-      currentStatus: "NEW",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    await act(async () => {
+      resolveCreate!({
+        id: 1,
+        ticketNumber: "TKT-2026-000001",
+        requesterId: 1,
+        categoryId: 1,
+        relatedSystemId: 1,
+        summary: "Laptop battery drains quickly",
+        description: "A description that is definitely long enough for validation.",
+        requestedPriority: "MEDIUM",
+        currentStatus: "NEW",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     });
   });
 

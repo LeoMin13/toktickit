@@ -21,9 +21,9 @@ function renderWithProviders() {
 
 beforeEach(() => {
   sessionStorage.clear();
+  vi.spyOn(api, "fetchMe").mockResolvedValue(null);
   vi.spyOn(api, "fetchCategories").mockResolvedValue([{ id: 1, name: "Hardware" }]);
   vi.spyOn(api, "fetchRelatedSystems").mockResolvedValue([{ id: 1, name: "Corporate Laptop" }]);
-  vi.spyOn(api, "createTicket").mockRejectedValue(new Error("Backend unavailable"));
 });
 
 describe("CreateTicket", () => {
