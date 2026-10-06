@@ -584,4 +584,100 @@ app.patch(
   }
 );
 
+app.get(
+  "/api/staff/tickets",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  async (req: Request, res: Response) => {
+    const {
+      search,
+      categoryId,
+      requestedPriority,
+      itPriority,
+      currentStatus,
+      ownerId,
+      sort = "createdAt",
+      order = "desc",
+      page = "1",
+      pageSize = "10",
+    } = req.query as Record<string, string>;
+
+    const pageNum = Number(page);
+    const pageSizeNum = Number(pageSize);
+
+    if (!Number.isInteger(pageNum) || pageNum < 1) {
+      return res.status(400).json({ error: "Invalid query parameter", field: "page" });
+    }
+    if (!PAGE_SIZES.has(pageSizeNum)) {
+      return res.status(400).json({ error: "Invalid query parameter", field: "pageSize" });
+    }
+    if (!SORTABLE_FIELDS.has(sort)) {
+      return res.status(400).json({ error: "Invalid query parameter", field: "sort" });
+    }
+    if (order !== "asc" && order !== "desc") {
+      return res.status(400).json({ error: "Invalid query parameter", field: "order" });
+    }
+
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      where.OR = [
+        { summary: { contains: search, mode: "insensitive" } },
+        { ticketNumber: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    if (categoryId) where.categoryId = Number(categoryId);
+    if (requestedPriority) where.requestedPriority = requestedPriority;
+    if (currentStatus) where.currentStatus = currentStatus;
+    if (ownerId === "unassigned") {
+      where.ticketOwnerId = null;
+    } else if (ownerId) {
+      where.ticketOwnerId = Number(ownerId);
+    }
+
+    const prisma = getPrisma();
+
+    try {
+      const [data, totalItems] = await Promise.all([
+        prisma.ticket.findMany({
+          where,
+          orderBy: { [sort]: order },
+          skip: (pageNum - 1) * pageSizeNum,
+          take: pageSizeNum,
+          include: {
+            category: { select: { name: true } },
+            ticketOwner: { select: { id: true, name: true } },
+          },
+        }),
+        prisma.ticket.count({ where }),
+      ]);
+
+      res.status(200).json({
+        data: data.map((t) => ({
+          id: t.id,
+          ticketNumber: t.ticketNumber,
+          summary: t.summary,
+          categoryId: t.categoryId,
+          categoryName: t.category.name,
+          requestedPriority: t.requestedPriority,
+          currentStatus: t.currentStatus,
+          ticketOwnerId: t.ticketOwnerId,
+          ticketOwnerName: t.ticketOwner?.name ?? null,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+        })),
+        pagination: {
+          page: pageNum,
+          pageSize: pageSizeNum,
+          totalItems,
+          totalPages: Math.max(1, Math.ceil(totalItems / pageSizeNum)),
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Unable to load tickets" });
+    }
+  }
+);
+
+
 export default app;

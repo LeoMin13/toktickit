@@ -4,6 +4,7 @@ import type { Attachment } from "./types.js";
 import type { PaginatedTickets, TicketListQuery } from "./types.js";
 // import type { Ticket, Attachment } from "./types.js";
 import type { Comment } from "./types.js";
+import type { PaginatedStaffTickets, StaffTicketListQuery } from "./types.js";
 
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -240,4 +241,25 @@ export async function markProblemResolved(ticketId: number): Promise<void> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Unable to update ticket");
+}
+
+export async function fetchStaffTickets(query: StaffTicketListQuery): Promise<PaginatedStaffTickets> {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.categoryId) params.set("categoryId", String(query.categoryId));
+  if (query.requestedPriority) params.set("requestedPriority", query.requestedPriority);
+  if (query.currentStatus) params.set("currentStatus", query.currentStatus);
+  if (query.ownerId) params.set("ownerId", query.ownerId);
+  params.set("sort", query.sort ?? "createdAt");
+  params.set("order", query.order ?? "desc");
+  params.set("page", String(query.page ?? 1));
+  params.set("pageSize", String(query.pageSize ?? 10));
+
+  const res = await fetch(`${API_URL}/api/staff/tickets?${params.toString()}`, {
+    credentials: "include",
+  });
+
+  if (res.status === 403) throw new Error("Forbidden");
+  if (!res.ok) throw new Error("Unable to load tickets");
+  return res.json();
 }

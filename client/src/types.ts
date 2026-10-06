@@ -90,3 +90,39 @@ export interface Comment {
   authorName: string;
   authorRole: "REQUESTER" | "IT_STAFF" | "ADMIN";
 }
+
+export interface StaffTicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  categoryId: number;
+  categoryName: string;
+  requestedPriority: RequestedPriority;
+  currentStatus: string;
+  ticketOwnerId: number | null;
+  ticketOwnerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginatedStaffTickets {
+  data: StaffTicketListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface StaffTicketListQuery {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: RequestedPriority;
+  currentStatus?: string;
+  ownerId?: string;
+  sort?: "createdAt" | "updatedAt";
+  order?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
