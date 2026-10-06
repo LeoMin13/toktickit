@@ -5,6 +5,7 @@ import type { PaginatedTickets, TicketListQuery } from "./types.js";
 // import type { Ticket, Attachment } from "./types.js";
 import type { Comment } from "./types.js";
 import type { PaginatedStaffTickets, StaffTicketListQuery } from "./types.js";
+import type { StaffTicketDetail, Note } from "./types.js";
 
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -261,5 +262,57 @@ export async function fetchStaffTickets(query: StaffTicketListQuery): Promise<Pa
 
   if (res.status === 403) throw new Error("Forbidden");
   if (!res.ok) throw new Error("Unable to load tickets");
+  return res.json();
+}
+
+export async function fetchStaffTicketDetail(ticketId: number): Promise<StaffTicketDetail> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, { credentials: "include" });
+  if (res.status === 403) throw new Error("Forbidden");
+  if (res.status === 404) throw new Error("Ticket not found");
+  if (!res.ok) throw new Error("Unable to load ticket");
+  return res.json();
+}
+
+export async function claimTicket(ticketId: number, ownerId: number | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/owner`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ownerId }),
+  });
+  if (!res.ok) throw new Error("Unable to update owner");
+}
+
+export async function setItPriority(ticketId: number, itPriority: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/priority`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itPriority }),
+  });
+  if (!res.ok) throw new Error("Unable to update priority");
+}
+
+export async function setTicketStatus(ticketId: number, status: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to update status");
+  }
+}
+
+export async function postNote(ticketId: number, content: string): Promise<Note> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/notes`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("Unable to post note");
   return res.json();
 }

@@ -7,7 +7,7 @@ import Login from "./pages/Login.js";
 import ChangePassword from "./pages/ChangePassword.js";
 import { useAuth } from "./context/AuthContext.js";
 import StaffTicketQueue from "./pages/StaffTicketQueue.js";
-
+import StaffTicketDetail from "./pages/StaffTicketDetail.js";
 
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -44,7 +44,7 @@ export default function App() {
         <Route path="/tickets/new" element={<CreateTicket />} />
         <Route path="/tickets/:id" element={<TicketDetail />} />
         <Route path="/queue" element={<StaffTicketQueue />} />
-        <Route path="/queue/:id" element={<p>Staff Ticket Detail — coming in Issue 8.</p>} />
+        <Route path="/queue/:id" element={<StaffTicketDetail />} />
       </Route>
     </Routes>
   );

@@ -36,6 +36,7 @@ model User {
   tickets      Ticket[]        @relation("RequesterTickets")
   ownedTickets Ticket[]        @relation("OwnedTickets")
   authoredComments PublicComment[]
+  authoredNotes InternalNote[]
 
 }
 
@@ -55,6 +56,13 @@ enum RequestedPriority {
 
 enum TicketStatus {
   NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_REQUESTER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
 }
 
 model Ticket {
@@ -77,6 +85,9 @@ model Ticket {
   attachments       Attachment[]
   problemAppearsResolved Boolean      @default(false)
   comments PublicComment[]
+
+  itPriority RequestedPriority?
+  notes      InternalNote[]
   
   @@index([requesterId])
 }
@@ -98,6 +109,18 @@ model Attachment {
 }
 
 model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+model InternalNote {
   id        Int      @id @default(autoincrement())
   ticketId  Int
   ticket    Ticket   @relation(fields: [ticketId], references: [id])

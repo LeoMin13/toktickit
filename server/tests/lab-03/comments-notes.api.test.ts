@@ -70,3 +70,50 @@ describe("Problem Appears Resolved", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("Internal Notes — role restrictions (API-06)", () => {
+  it("allows IT Staff to post and read notes", async () => {
+    const staffAgent = request.agent(app);
+    await staffAgent.post("/api/auth/login").send({
+      email: "alex.thompson@tiktockit.com", password: "Staff123!",
+    });
+
+    const postRes = await staffAgent.post(`/api/tickets/${ticketId}/notes`).send({
+      content: "Checked the device, battery health at 62%.",
+    });
+    expect(postRes.status).toBe(201);
+
+    const listRes = await staffAgent.get(`/api/tickets/${ticketId}/notes`);
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rejects a Requester posting a note, with no content leaked (403)", async () => {
+    const res = await agentA.post(`/api/tickets/${ticketId}/notes`).send({
+      content: "Should not be allowed.",
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.content).toBeUndefined();
+  });
+
+  it("rejects a Requester reading notes (403)", async () => {
+    const res = await agentA.get(`/api/tickets/${ticketId}/notes`);
+    expect(res.status).toBe(403);
+    expect(Array.isArray(res.body)).toBe(false);
+  });
+
+  it("allows IT Staff to post and read public comments on any ticket", async () => {
+    const staffAgent = request.agent(app);
+    await staffAgent.post("/api/auth/login").send({
+        email: "alex.thompson@tiktockit.com", password: "Staff123!",
+    });
+
+    const postRes = await staffAgent.post(`/api/tickets/${ticketId}/comments`).send({
+        content: "We're looking into this now.",
+    });
+    expect(postRes.status).toBe(201);
+
+    const listRes = await staffAgent.get(`/api/tickets/${ticketId}/comments`);
+    expect(listRes.status).toBe(200);
+  });
+});

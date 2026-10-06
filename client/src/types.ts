@@ -126,3 +126,34 @@ export interface StaffTicketListQuery {
   page?: number;
   pageSize?: number;
 }
+
+export interface Note {
+  id: number;
+  content: string;
+  createdAt: string;
+  authorName: string;
+  authorRole: string;
+}
+
+export interface StaffTicketDetail {
+  id: number;
+  ticketNumber: string;
+  requesterName: string;
+  categoryId: number;
+  categoryName: string;
+  relatedSystemId: number;
+  relatedSystemName: string;
+  summary: string;
+  description: string;
+  requestedPriority: RequestedPriority;
+  itPriority: RequestedPriority | null;
+  currentStatus: string;
+  problemAppearsResolved: boolean;
+  ticketOwnerId: number | null;
+  ticketOwnerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments: Attachment[];
+  comments: Comment[];
+  notes: Note[];
+}

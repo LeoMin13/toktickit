@@ -10,6 +10,9 @@ import { upload } from "./middleware/upload.js";
 import { sessionMiddleware } from "./middleware/session.js";
 import { hashPassword, verifyPassword } from "./services/password.js";
 import { requireRole } from "./middleware/authorization.js";
+import { isTransitionAllowed } from "./services/statusTransitions.js";
+
+
 
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.
@@ -34,6 +37,19 @@ async function requireOwnedTicket(req: Request, res: Response, next: NextFunctio
   }
   const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId } });
   if (!ticket || ticket.requesterId !== res.locals.currentUser.id) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  res.locals.ticket = ticket;
+  next();
+}
+
+async function requireStaffTicket(req: Request, res: Response, next: NextFunction) {
+  const ticketId = Number(req.params.id);
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) {
     return res.status(404).json({ error: "Ticket not found" });
   }
   res.locals.ticket = ticket;
@@ -249,6 +265,7 @@ app.post("/api/tickets", requireAuth, requireRole("REQUESTER"), async (req: Requ
         summary: trimmedSummary,
         description: trimmedDescription,
         requestedPriority,
+        itPriority: requestedPriority, // BR-07: defaults to Requested Priority
       },
     });
     res.status(201).json(ticket);
@@ -516,8 +533,12 @@ app.get("/api/tickets/:id", requireAuth, requireRole("REQUESTER"), async (req: R
 app.post(
   "/api/tickets/:id/comments",
   requireAuth,
-  requireRole("REQUESTER"),
-  requireOwnedTicket,
+  async (req: Request, res: Response, next: NextFunction) => {
+    const role = res.locals.currentUser.role;
+    if (role === "REQUESTER") return requireOwnedTicket(req, res, next);
+    if (role === "IT_STAFF" || role === "ADMIN") return requireStaffTicket(req, res, next);
+    return res.status(403).json({ error: "Forbidden" });
+  },
   async (req: Request, res: Response) => {
     const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
     if (content.length === 0) {
@@ -549,8 +570,12 @@ app.post(
 app.get(
   "/api/tickets/:id/comments",
   requireAuth,
-  requireRole("REQUESTER"),
-  requireOwnedTicket,
+  async (req: Request, res: Response, next: NextFunction) => {
+    const role = res.locals.currentUser.role;
+    if (role === "REQUESTER") return requireOwnedTicket(req, res, next);
+    if (role === "IT_STAFF" || role === "ADMIN") return requireStaffTicket(req, res, next);
+    return res.status(403).json({ error: "Forbidden" });
+  },
   async (req: Request, res: Response) => {
     const comments = await getPrisma().publicComment.findMany({
       where: { ticketId: Number(req.params.id) },
@@ -679,5 +704,194 @@ app.get(
   }
 );
 
+app.get(
+  "/api/staff/tickets/:id",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  requireStaffTicket,
+  async (_req: Request, res: Response) => {
+    const ticketId = res.locals.ticket.id;
+    const prisma = getPrisma();
+
+    const [ticket, comments, notes] = await Promise.all([
+      prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+          category: { select: { name: true } },
+          relatedSystem: { select: { name: true } },
+          requester: { select: { name: true } },
+          ticketOwner: { select: { id: true, name: true } },
+          attachments: {
+            select: {
+              id: true, originalFileName: true, sizeBytes: true, mimeType: true,
+              uploadedAt: true, isRemoved: true, removedAt: true, removalReason: true,
+            },
+          },
+        },
+      }),
+      prisma.publicComment.findMany({
+        where: { ticketId },
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { name: true, role: true } } },
+      }),
+      prisma.internalNote.findMany({
+        where: { ticketId },
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { name: true, role: true } } },
+      }),
+    ]);
+
+    res.status(200).json({
+      id: ticket!.id,
+      ticketNumber: ticket!.ticketNumber,
+      requesterName: ticket!.requester.name,
+      categoryId: ticket!.categoryId,
+      categoryName: ticket!.category.name,
+      relatedSystemId: ticket!.relatedSystemId,
+      relatedSystemName: ticket!.relatedSystem.name,
+      summary: ticket!.summary,
+      description: ticket!.description,
+      requestedPriority: ticket!.requestedPriority,
+      itPriority: ticket!.itPriority,
+      currentStatus: ticket!.currentStatus,
+      problemAppearsResolved: ticket!.problemAppearsResolved,
+      ticketOwnerId: ticket!.ticketOwnerId,
+      ticketOwnerName: ticket!.ticketOwner?.name ?? null,
+      createdAt: ticket!.createdAt,
+      updatedAt: ticket!.updatedAt,
+      attachments: ticket!.attachments,
+      comments: comments.map((c) => ({
+        id: c.id, content: c.content, createdAt: c.createdAt,
+        authorName: c.author.name, authorRole: c.author.role,
+      })),
+      notes: notes.map((n) => ({
+        id: n.id, content: n.content, createdAt: n.createdAt,
+        authorName: n.author.name, authorRole: n.author.role,
+      })),
+    });
+  }
+);
+
+app.patch(
+  "/api/staff/tickets/:id/owner",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  requireStaffTicket,
+  async (req: Request, res: Response) => {
+    const { ownerId } = req.body ?? {};
+
+    if (ownerId !== null && ownerId !== undefined) {
+      const owner = await getPrisma().user.findUnique({ where: { id: ownerId } });
+      if (!owner || owner.isActive === false || !["IT_STAFF", "ADMIN"].includes(owner.role)) {
+        return res.status(400).json({ error: "ownerId must be an active IT Staff or Admin user" });
+      }
+    }
+
+    const updated = await getPrisma().ticket.update({
+      where: { id: res.locals.ticket.id },
+      data: { ticketOwnerId: ownerId ?? null },
+      include: { ticketOwner: { select: { id: true, name: true } } },
+    });
+
+    res.status(200).json({
+      ticketOwnerId: updated.ticketOwnerId,
+      ticketOwnerName: updated.ticketOwner?.name ?? null,
+    });
+  }
+);
+
+app.patch(
+  "/api/staff/tickets/:id/priority",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  requireStaffTicket,
+  async (req: Request, res: Response) => {
+    const { itPriority } = req.body ?? {};
+    if (!["LOW", "MEDIUM", "HIGH"].includes(itPriority)) {
+      return res.status(400).json({ error: "itPriority must be LOW, MEDIUM, or HIGH" });
+    }
+
+    const updated = await getPrisma().ticket.update({
+      where: { id: res.locals.ticket.id },
+      data: { itPriority },
+    });
+
+    res.status(200).json({ itPriority: updated.itPriority });
+  }
+);
+
+app.patch(
+  "/api/staff/tickets/:id/status",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  requireStaffTicket,
+  async (req: Request, res: Response) => {
+    const { status } = req.body ?? {};
+    const currentStatus = res.locals.ticket.currentStatus;
+
+    if (!isTransitionAllowed(currentStatus, status)) {
+      return res.status(400).json({
+        error: `Transition from ${currentStatus} to ${status} is not permitted`,
+      });
+    }
+
+    const updated = await getPrisma().ticket.update({
+      where: { id: res.locals.ticket.id },
+      data: { currentStatus: status },
+    });
+
+    res.status(200).json({ currentStatus: updated.currentStatus });
+  }
+);
+
+app.post(
+  "/api/tickets/:id/notes",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  requireStaffTicket,
+  async (req: Request, res: Response) => {
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    if (content.length === 0) {
+      return res.status(400).json({
+        error: "Validation failed",
+        fields: { content: "Note cannot be empty" },
+      });
+    }
+
+    const note = await getPrisma().internalNote.create({
+      data: {
+        ticketId: res.locals.ticket.id,
+        authorId: res.locals.currentUser.id,
+        content,
+      },
+      include: { author: { select: { name: true, role: true } } },
+    });
+
+    res.status(201).json({
+      id: note.id, content: note.content, createdAt: note.createdAt,
+      authorName: note.author.name, authorRole: note.author.role,
+    });
+  }
+);
+
+app.get(
+  "/api/tickets/:id/notes",
+  requireAuth,
+  requireRole("IT_STAFF", "ADMIN"),
+  requireStaffTicket,
+  async (_req: Request, res: Response) => {
+    const notes = await getPrisma().internalNote.findMany({
+      where: { ticketId: res.locals.ticket.id },
+      orderBy: { createdAt: "asc" },
+      include: { author: { select: { name: true, role: true } } },
+    });
+    res.status(200).json(
+      notes.map((n) => ({
+        id: n.id, content: n.content, createdAt: n.createdAt,
+        authorName: n.author.name, authorRole: n.author.role,
+      }))
+    );
+  }
+);
 
 export default app;

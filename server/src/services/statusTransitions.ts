@@ -1,0 +1,18 @@
+type Status =
+  | "NEW" | "OPEN" | "IN_PROGRESS" | "WAITING_FOR_REQUESTER"
+  | "RESOLVED" | "CLOSED" | "REOPENED" | "CANCELLED";
+
+const TRANSITIONS: Record<Status, Status[]> = {
+  NEW: ["OPEN", "IN_PROGRESS", "CANCELLED"],
+  OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "CANCELLED"],
+  IN_PROGRESS: ["OPEN", "WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
+  WAITING_FOR_REQUESTER: ["OPEN", "IN_PROGRESS", "RESOLVED", "CANCELLED"],
+  RESOLVED: ["CLOSED", "REOPENED"],
+  CLOSED: ["REOPENED"],
+  REOPENED: ["OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "CANCELLED"],
+  CANCELLED: ["REOPENED"],
+};
+
+export function isTransitionAllowed(from: Status, to: Status): boolean {
+  return TRANSITIONS[from]?.includes(to) ?? false;
+}
