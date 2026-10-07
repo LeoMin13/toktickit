@@ -30,6 +30,11 @@ export default function AppShell() {
               My Queue
             </NavLink>
           )}
+          {user?.role === "ADMIN" && (
+            <NavLink to="/admin/users" className={({ isActive }) => `nav-link text-white ${isActive ? "nav-link-active" : ""}`}>
+              Users
+            </NavLink>
+          )}
         </nav>
         <div className="d-flex align-items-center gap-2 text-white">
           <span>{user?.name} ({user?.role})</span>

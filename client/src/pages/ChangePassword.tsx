@@ -1,6 +1,8 @@
 import { useState, FormEvent } from "react";
 import { useAuth } from "../context/AuthContext.js";
 import { changePassword } from "../api.js";
+import { useNavigate } from "react-router-dom";
+
 
 function checkRules(password: string) {
   return {
@@ -25,6 +27,10 @@ export default function ChangePassword() {
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
   const canSubmit = allRulesPass && passwordsMatch && currentPassword.length > 0;
 
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
+
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
@@ -32,12 +38,27 @@ export default function ChangePassword() {
     setError("");
     try {
       await changePassword(currentPassword, newPassword);
-      await refresh();
+      setSuccess(true);
+      setTimeout(async () => {
+        await refresh();
+        navigate("/");
+      }, 1200);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (success) {
+    return (
+      <div className="container py-5" style={{ maxWidth: 420 }}>
+        <div className="alert alert-success" role="status">
+          <p className="mb-0">✓ Your password has been changed successfully.</p>
+          <p className="mb-0 small">Redirecting you to the application…</p>
+        </div>
+      </div>
+    );
   }
 
   return (

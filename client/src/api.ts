@@ -6,6 +6,7 @@ import type { PaginatedTickets, TicketListQuery } from "./types.js";
 import type { Comment } from "./types.js";
 import type { PaginatedStaffTickets, StaffTicketListQuery } from "./types.js";
 import type { StaffTicketDetail, Note } from "./types.js";
+import type { AdminUser } from "./types.js";
 
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -315,4 +316,61 @@ export async function postNote(ticketId: number, content: string): Promise<Note>
   });
   if (!res.ok) throw new Error("Unable to post note");
   return res.json();
+}
+
+export async function fetchUsers(search?: string, role?: string): Promise<AdminUser[]> {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (role) params.set("role", role);
+  const res = await fetch(`${API_URL}/api/admin/users?${params.toString()}`, {
+    credentials: "include",
+  });
+  if (res.status === 403) throw new Error("Forbidden");
+  if (!res.ok) throw new Error("Unable to load users");
+  return res.json();
+}
+
+export async function createUser(input: {
+  name: string; email: string; role: string; isActive: boolean; initialPassword: string;
+}): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.error ?? "Unable to create user") as Error & { fields?: Record<string, string> };
+    err.fields = body.fields;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function updateUser(
+  id: number,
+  patch: Partial<{ name: string; email: string; role: string; isActive: boolean }>
+): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Unable to update user");
+  }
+  return res.json();
+}
+
+export async function setUserPassword(id: number, newPassword: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/password`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ newPassword }),
+  });
+  if (!res.ok) throw new Error("Unable to set password");
 }

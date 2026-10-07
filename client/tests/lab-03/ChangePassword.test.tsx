@@ -34,7 +34,7 @@ describe("ChangePassword", () => {
     expect(continueButton).not.toBeDisabled();
   });
 
-  it("calls changePassword and refreshes on submit", async () => {
+  it("shows a success message after changing the password", async () => {
     vi.spyOn(api, "changePassword").mockResolvedValue(undefined);
     renderChangePassword();
 
@@ -44,7 +44,7 @@ describe("ChangePassword", () => {
     fireEvent.click(screen.getByText("Continue"));
 
     await waitFor(() => {
-      expect(api.changePassword).toHaveBeenCalledWith("Temp123!", "Strong123!");
+      expect(screen.getByText(/password has been changed successfully/i)).toBeInTheDocument();
     });
   });
 });

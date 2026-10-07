@@ -157,3 +157,11 @@ export interface StaffTicketDetail {
   comments: Comment[];
   notes: Note[];
 }
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMIN";
+  isActive: boolean;
+}

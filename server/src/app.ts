@@ -894,4 +894,160 @@ app.get(
   }
 );
 
+app.get(
+  "/api/admin/users",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (req: Request, res: Response) => {
+    const { search, role } = req.query as Record<string, string>;
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    if (role && ["REQUESTER", "IT_STAFF", "ADMIN"].includes(role)) {
+      where.role = role;
+    }
+
+    const users = await getPrisma().user.findMany({
+      where,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, role: true, isActive: true },
+    });
+
+    res.status(200).json(users);
+  }
+);
+
+app.post(
+  "/api/admin/users",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (req: Request, res: Response) => {
+    const { name, email, role, isActive, initialPassword } = req.body ?? {};
+    const fields: Record<string, string> = {};
+
+    if (typeof name !== "string" || name.trim().length === 0) fields.name = "Name is required";
+    if (typeof email !== "string" || email.trim().length === 0) fields.email = "Email is required";
+    if (!["REQUESTER", "IT_STAFF", "ADMIN"].includes(role)) fields.role = "A valid role is required";
+    if (typeof initialPassword !== "string" || initialPassword.length < 8) {
+      fields.initialPassword = "Initial password must be at least 8 characters";
+    }
+
+    if (Object.keys(fields).length > 0) {
+      return res.status(400).json({ error: "Validation failed", fields });
+    }
+
+    const existing = await getPrisma().user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: "A user with this email already exists" });
+    }
+
+    const passwordHash = await hashPassword(initialPassword);
+    const user = await getPrisma().user.create({
+      data: {
+        name: name.trim(),
+        email: email.trim(),
+        role,
+        isActive: isActive ?? true,
+        passwordHash,
+        mustChangePassword: true,
+      },
+    });
+
+    res.status(201).json({
+      id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive,
+    });
+  }
+);
+
+app.patch(
+  "/api/admin/users/:id",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (req: Request, res: Response) => {
+    const userId = Number(req.params.id);
+    const { name, email, role, isActive } = req.body ?? {};
+    const prisma = getPrisma();
+
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // BR-11: an Administrator cannot deactivate their own account
+    if (isActive === false && userId === res.locals.currentUser.id) {
+      return res.status(400).json({ error: "You cannot deactivate your own account" });
+    }
+
+    // BR-12: never leave zero active Administrators
+    if (isActive === false && target.role === "ADMIN") {
+      const activeAdmins = await prisma.user.count({ where: { role: "ADMIN", isActive: true } });
+      if (activeAdmins <= 1) {
+        return res.status(400).json({ error: "Cannot deactivate the last active Administrator" });
+      }
+    }
+    if (role && role !== "ADMIN" && target.role === "ADMIN") {
+      const activeAdmins = await prisma.user.count({ where: { role: "ADMIN", isActive: true } });
+      if (activeAdmins <= 1) {
+        return res.status(400).json({ error: "Cannot change the role of the last active Administrator" });
+      }
+    }
+
+    if (email && email !== target.email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return res.status(409).json({ error: "A user with this email already exists" });
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(email !== undefined && { email: email.trim() }),
+        ...(role !== undefined && { role }),
+        ...(isActive !== undefined && { isActive }),
+      },
+    });
+
+    res.status(200).json({
+      id: updated.id, name: updated.name, email: updated.email, role: updated.role, isActive: updated.isActive,
+    });
+  }
+);
+
+app.patch(
+  "/api/admin/users/:id/password",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (req: Request, res: Response) => {
+    const userId = Number(req.params.id);
+    const { newPassword } = req.body ?? {};
+
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({
+        error: "Validation failed",
+        fields: { newPassword: "Password must be at least 8 characters" },
+      });
+    }
+
+    const target = await getPrisma().user.findUnique({ where: { id: userId } });
+    if (!target) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await getPrisma().user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: true },
+    });
+
+    res.status(200).json({ mustChangePassword: true });
+  }
+);
+
 export default app;
