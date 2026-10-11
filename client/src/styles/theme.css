@@ -50,3 +50,71 @@ body {
   text-decoration-thickness: 2px;
   text-shadow: 0 0 0.4px currentColor;
 }
+
+/* Role badges */
+.badge-role-requester {
+  background-color: #E9ECEF;
+  color: #495057;
+  border: 1px solid #ADB5BD;
+}
+.badge-role-it_staff {
+  background-color: rgba(11, 122, 70, 0.15);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+.badge-role-admin {
+  background-color: rgba(0, 107, 60, 0.15);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+/* Extended status badges (Lab 3) */
+.badge-status-open {
+  background-color: rgba(11, 122, 70, 0.15);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+.badge-status-in_progress {
+  background-color: rgba(185, 119, 14, 0.15);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+.badge-status-waiting_for_requester {
+  background-color: rgba(108, 117, 125, 0.15);
+  color: #495057;
+  border: 1px solid #ADB5BD;
+}
+.badge-status-resolved {
+  background-color: rgba(11, 122, 70, 0.2);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+.badge-status-closed {
+  background-color: #E9ECEF;
+  color: #495057;
+  border: 1px solid #6C757D;
+}
+.badge-status-reopened {
+  background-color: rgba(185, 119, 14, 0.15);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+.badge-status-cancelled {
+  background-color: rgba(138, 31, 31, 0.1);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+/* Internal Note vs Public Comment distinction */
+.note-internal {
+  background-color: #FBF3E3;
+  border-left: 3px solid var(--color-warning);
+}
+.comment-public {
+  background-color: var(--color-pale);
+  border-left: 3px solid var(--color-secondary);
+}
+
+.navbar .badge[class*="badge-role-"] {
+  background-color: #FFFFFF;
+}

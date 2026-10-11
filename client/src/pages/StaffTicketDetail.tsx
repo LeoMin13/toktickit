@@ -13,6 +13,10 @@ const STATUS_OPTIONS = [
   "RESOLVED", "CLOSED", "REOPENED", "CANCELLED",
 ];
 
+export function statusBadgeClass(status: string): string {
+  return `badge-status-${status.toLowerCase()}`;
+}
+
 export default function StaffTicketDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();

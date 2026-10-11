@@ -12,6 +12,10 @@ const DEFAULT_QUERY: StaffTicketListQuery = {
   pageSize: 10,
 };
 
+export function statusBadgeClass(status: string): string {
+  return `badge-status-${status.toLowerCase()}`;
+}
+
 export default function StaffTicketQueue() {
   const [state, setState] = useState<LoadState>("loading");
   const [result, setResult] = useState<PaginatedStaffTickets | null>(null);
@@ -146,7 +150,7 @@ export default function StaffTicketQueue() {
                       {t.requestedPriority}
                     </span>
                   </td>
-                  <td><span className="badge badge-status-new">{t.currentStatus}</span></td>
+                  <td><span className={`badge badge-status-${t.currentStatus.toLowerCase()}`}>{t.currentStatus.replaceAll("_", " ")}</span></td>
                   <td>{t.ticketOwnerName ?? <span className="text-muted">Unassigned</span>}</td>
                 </tr>
               ))}
@@ -162,7 +166,7 @@ export default function StaffTicketQueue() {
               >
                 <div className="d-flex justify-content-between">
                   <strong>{t.ticketNumber}</strong>
-                  <span className="badge badge-status-new">{t.currentStatus}</span>
+                  <span className={`badge badge-status-${t.currentStatus.toLowerCase()}`}>{t.currentStatus.replaceAll("_", " ")}</span>
                 </div>
                 <div>{t.summary}</div>
                 <div className="text-muted small">

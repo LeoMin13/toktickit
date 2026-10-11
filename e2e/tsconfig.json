@@ -7,5 +7,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["lab-02/**/*.ts"]
+  "include": ["lab-02/**/*.ts", "lab-03/**/*.ts", "helpers/**/*.ts"]
 }

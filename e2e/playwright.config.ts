@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./lab-02",
+  testDir: ".",
+  testMatch: ["lab-02/**/*.spec.ts", "lab-03/**/*.spec.ts"],
   fullyParallel: false,
   workers: 1,
   reporter: "list",
@@ -15,17 +16,11 @@ export default defineConfig({
     },
     {
       name: "tablet",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 834, height: 1194 },
-      },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 834, height: 1194 } },
     },
     {
       name: "mobile",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 390, height: 844 },
-      },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
     },
   ],
 });

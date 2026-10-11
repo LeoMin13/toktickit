@@ -1,28 +1,38 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchTicketDetail, TicketDetail as TicketDetailType, uploadAttachment, removeAttachment, downloadAttachment } from "../api.js";
+import {
+  fetchTicketDetail,
+  TicketDetail as TicketDetailType,
+  uploadAttachment,
+  removeAttachment,
+  downloadAttachment,
+  fetchComments,
+  postComment,
+  markProblemResolved,
+} from "../api.js";
 import { useAuth } from "../context/AuthContext.js";
-import { fetchComments, postComment, markProblemResolved } from "../api.js";
 import type { Comment } from "../types.js";
+
 type LoadState = "loading" | "loaded" | "not-found" | "error";
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+
   const [state, setState] = useState<LoadState>("loading");
   const [ticket, setTicket] = useState<TicketDetailType | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [removingId, setRemovingId] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
   const [resolvedMessage, setResolvedMessage] = useState("");
-
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user?.id]);
 
   async function load() {
@@ -52,7 +62,7 @@ export default function TicketDetail() {
     setUploadError("");
     try {
       await uploadAttachment(ticket.id, file);
-      await load(); // reload to show the new attachment
+      await load();
     } catch (err) {
       setUploadError((err as Error).message);
     } finally {
@@ -63,7 +73,7 @@ export default function TicketDetail() {
   async function handleRemove(attachmentId: number) {
     if (!user) return;
     const reason = window.prompt("Reason for removing this attachment (minimum 3 characters):");
-    if (reason === null) return; // cancelled
+    if (reason === null) return;
     if (reason.trim().length < 3) {
       setUploadError("Removal reason must be at least 3 characters.");
       return;
@@ -79,8 +89,6 @@ export default function TicketDetail() {
       setRemovingId(null);
     }
   }
-
-  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   async function handleDownload(attachmentId: number) {
     if (!user) return;
@@ -174,7 +182,9 @@ export default function TicketDetail() {
           </div>
           <div className="col-6 col-md-3">
             <div className="form-label fw-semibold small">Current Status</div>
-            <span className="badge badge-status-new">{ticket.currentStatus}</span>
+            <span className={`badge badge-status-${ticket.currentStatus.toLowerCase()}`}>
+              {ticket.currentStatus.replace(/_/g, " ")}
+            </span>
           </div>
           <ReadOnlyField label="Summary" value={ticket.summary} full />
           <ReadOnlyField label="Description" value={ticket.description} full multiline />
@@ -256,11 +266,12 @@ export default function TicketDetail() {
       </section>
 
       <section className="card p-3 mt-4" aria-label="Public Comments">
-        <h2 className="h6 mb-3">Public Comments</h2>
+        <h2 className="h6 mb-1">Public Comments</h2>
+        <p className="text-muted small mb-3">Visible to IT Staff</p>
 
         <ul className="list-unstyled mb-3">
           {comments.map((c) => (
-            <li key={c.id} className="p-2 rounded mb-2" style={{ backgroundColor: "#EAF6EF" }}>
+            <li key={c.id} className="p-2 rounded mb-2 comment-public">
               <div className="d-flex justify-content-between">
                 <strong>{c.authorName}</strong>
                 <span className="small text-muted">{new Date(c.createdAt).toLocaleString()}</span>
@@ -292,7 +303,6 @@ export default function TicketDetail() {
         )}
         {resolvedMessage && <p className="small text-muted mt-2">{resolvedMessage}</p>}
       </section>
-
     </div>
   );
 }
@@ -308,12 +318,13 @@ function ReadOnlyField({
   full?: boolean;
   multiline?: boolean;
 }) {
-  const style = { backgroundColor: "#EEF3F0", whiteSpace: multiline ? "pre-wrap" : "normal" } as const;
-
   return (
     <div className={full ? "col-12" : "col-6 col-md-3"}>
       <div className="form-label fw-semibold small">{label}</div>
-      <div className="p-2 rounded field-readonly" style={style}>
+      <div
+        className="p-2 rounded field-readonly"
+        style={{ whiteSpace: multiline ? "pre-wrap" : "normal" }}
+      >
         {value}
       </div>
     </div>
