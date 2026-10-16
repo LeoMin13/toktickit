@@ -1,16 +1,13 @@
 import { test, expect } from "@playwright/test";
+import { loginAs } from "../helpers/auth";
 
 test.describe("Requester ticket flow", () => {
-  test("select Requester → create ticket with attachment → find in My Tickets → open Detail (E2E-01)", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector("text=Select Development Requester");
+  test("login → create ticket with attachment → find in My Tickets → open Detail (E2E-01)", async ({ page }) => {
+    await loginAs(page, "jennifer.anderson@example.com", "Requester123!");
+    await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
 
-    await page.selectOption("#requester-select", { index: 0 });
-    await page.click("text=Continue");
-    await page.waitForSelector("text=My Tickets");
-
-    await page.click("text=Create Ticket");
-    await page.waitForSelector("text=Create Ticket");
+    await page.getByRole("link", { name: "Create Ticket" }).first().click();
+    await expect(page.getByRole("button", { name: "Submit Ticket" })).toBeVisible();
 
     const uniqueId = String(Date.now());
     const uniqueSummary = `E2E test ticket ${uniqueId}`;
@@ -18,7 +15,7 @@ test.describe("Requester ticket flow", () => {
     await page.fill("#summary", uniqueSummary);
     await page.fill(
       "#description",
-      "This ticket is created by the Lab 2 end-to-end test to verify the full Requester flow."
+      "This ticket is created by the end-to-end test to verify the full Requester flow."
     );
     await page.selectOption("#requestedPriority", "HIGH");
 
@@ -28,75 +25,67 @@ test.describe("Requester ticket flow", () => {
       buffer: Buffer.from("%PDF-1.4 e2e test content"),
     });
 
-    await page.click("text=Submit Ticket");
-
+    await page.getByRole("button", { name: "Submit Ticket" }).click();
     await page.waitForSelector('[role="status"].alert-success', { timeout: 15000 });
 
     const ticketNumberLocator = page.locator("strong");
     await expect(ticketNumberLocator).toContainText(/TKT-\d{4}-\d{6}/, { timeout: 5000 });
     const ticketNumber = (await ticketNumberLocator.textContent())?.trim() ?? "";
 
-    await page.click("text=My Tickets");
-    await page.waitForSelector("text=My Tickets");
+    await page.getByRole("link", { name: "My Tickets" }).click();
+    await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
 
-    // Search with a space-free, unique token so we can reliably identify
-    // the response that actually corresponds to THIS search, not an
-    // unrelated /api/tickets fetch (e.g. the list's initial page load).
     const searchResponsePromise = page.waitForResponse(
-      (res) => res.url().includes("/api/tickets?") && res.url().includes(`search=${uniqueId}`) && res.status() === 200
+      (res) =>
+        res.url().includes("/api/tickets?") &&
+        res.url().includes(`search=${uniqueId}`) &&
+        res.status() === 200
     );
-    await page.fill('input[placeholder*="Search"]', uniqueId);
-    await page.click("text=Search");
+    await page.getByPlaceholder(/Search by ticket number/).fill(uniqueId);
+    await page.getByRole("button", { name: "Search" }).click();
     await searchResponsePromise;
 
     const ticketLink = page.locator(`a:visible:has-text("${ticketNumber}")`).first();
     await expect(ticketLink).toBeVisible({ timeout: 10000 });
 
     await ticketLink.click();
-    await page.waitForSelector("text=Ticket Information");
+    await expect(page.getByRole("heading", { name: "Ticket Information" })).toBeVisible();
     await expect(page.locator("body")).toContainText(uniqueSummary);
-
     await expect(page.locator("text=evidence.pdf")).toBeVisible();
 
     const downloadPromise = page.waitForEvent("download");
-    await page.click("text=Download");
+    await page.getByRole("button", { name: "Download" }).click();
     const download = await downloadPromise;
-
     expect(download.suggestedFilename()).toBe("evidence.pdf");
   });
 
   test("Requester A's ticket is inaccessible to Requester B via direct URL (E2E-02)", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector("text=Select Development Requester");
-    await page.selectOption("#requester-select", { index: 0 });
-    await page.click("text=Continue");
-    await page.waitForSelector("text=My Tickets");
+    await loginAs(page, "jennifer.anderson@example.com", "Requester123!");
+    await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
 
-    await page.click("text=Create Ticket");
-    await page.waitForSelector("text=Create Ticket");
+    await page.getByRole("link", { name: "Create Ticket" }).first().click();
+    await expect(page.getByRole("button", { name: "Submit Ticket" })).toBeVisible();
 
     const uniqueId = String(Date.now());
-    const summaryA = `Requester A private ticket ${uniqueId}`;
-    await page.fill("#summary", summaryA);
+    await page.fill("#summary", `Requester A private ticket ${uniqueId}`);
     await page.fill(
       "#description",
       "This ticket belongs to Requester A and must not be visible to Requester B."
     );
-    await page.click("text=Submit Ticket");
-
+    await page.getByRole("button", { name: "Submit Ticket" }).click();
     await page.waitForSelector('[role="status"].alert-success', { timeout: 15000 });
 
-    const ticketNumberLocator = page.locator("strong");
-    await expect(ticketNumberLocator).toContainText(/TKT-\d{4}-\d{6}/, { timeout: 5000 });
-
-    await page.click("text=My Tickets");
-    await page.waitForSelector("text=My Tickets");
+    await page.getByRole("link", { name: "My Tickets" }).click();
+    await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
 
     const searchResponsePromise = page.waitForResponse(
-      (res) => res.url().includes("/api/tickets?") && res.url().includes(`search=${uniqueId}`) && res.status() === 200
+      (res) =>
+        res.url().includes("/api/tickets?") &&
+        res.url().includes(`search=${uniqueId}`) &&
+        res.status() === 200
     );
-    await page.fill('input[placeholder*="Search"]', uniqueId);
-    await page.click("text=Search");
+    await page.getByPlaceholder(/Search by ticket number/).fill(uniqueId);
+    await page.getByRole("button", { name: "Search" }).click();
     await searchResponsePromise;
 
     const ticketLink = page.locator("table a:visible, a.card:visible").first();
@@ -104,11 +93,10 @@ test.describe("Requester ticket flow", () => {
     const href = await ticketLink.getAttribute("href");
     expect(href).toBeTruthy();
 
-    await page.click("text=Change Requester");
-    await page.waitForSelector("text=Select Development Requester");
-    await page.selectOption("#requester-select", { index: 1 });
-    await page.click("text=Continue");
-    await page.waitForSelector("text=My Tickets");
+    // Switch identity: log out, then sign in as a different Requester
+    await page.getByRole("button", { name: "Logout" }).click();
+    await page.waitForURL(/\/login/);
+    await loginAs(page, "michael.brown@example.com", "Requester123!");
 
     await page.goto(href!);
     await expect(page.locator("text=Ticket not found.")).toBeVisible();

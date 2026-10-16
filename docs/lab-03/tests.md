@@ -40,6 +40,9 @@ regression, responsive/visual, E2E.
 | E2E-02 | E2E | AC-10 | Logout → direct navigation to a protected page | Redirected to Login | `e2e/lab-03/authentication.spec.ts` | Pending |
 | E2E-03 | E2E | AC-05, AC-06 | IT Staff claims a ticket, sets priority, moves status, adds a note | All changes persisted and visible | `e2e/lab-03/staff-ticket-flow.spec.ts` | Pending |
 | E2E-04 | E2E | AC-07, AC-08, AC-09 | Admin creates a user, then attempts self-deactivation and duplicate email | Both rejected with visible errors | `e2e/lab-03/user-administration.spec.ts` | Pending |
+| E2E-05 | E2E | BR-01 | Invalid password and inactive account show the same generic error | Generic message, stays on /login | `e2e/lab-03/authentication.spec.ts` | Pending |
+| E2E-06 | E2E | AC-12 | Requester/IT Staff see no unauthorized navigation and are denied direct access | No link rendered; "Access denied" shown | `e2e/lab-03/authentication.spec.ts` | Pending |
+
 
 ## 3. Acceptance-Criterion Traceability
 
@@ -56,7 +59,7 @@ regression, responsive/visual, E2E.
 | AC-09 | API-14, UI-06, E2E-04 |
 | AC-10 | API-03, E2E-02 |
 | AC-11 | API-13 |
-| AC-12 | API-07 |
+| AC-12 | API-07, E2E-06 |
 
 All 12 Acceptance Criteria have at least one mapped test.
 

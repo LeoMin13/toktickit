@@ -219,6 +219,7 @@ export async function fetchComments(ticketId: number): Promise<Comment[]> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
     credentials: "include",
   });
+  if (res.status === 404) throw new Error("Ticket not found");
   if (!res.ok) throw new Error("Unable to load comments");
   return res.json();
 }

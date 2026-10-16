@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
 import {
-  fetchStaffTicketDetail, claimTicket, setItPriority, setTicketStatus, postNote,
+  fetchStaffTicketDetail, claimTicket, setItPriority, setTicketStatus, postNote, postComment,
 } from "../api.js";
 import type { StaffTicketDetail as StaffTicketDetailType } from "../types.js";
+
 
 type LoadState = "loading" | "loaded" | "forbidden" | "not-found" | "error";
 
@@ -25,6 +26,9 @@ export default function StaffTicketDetail() {
   const [actionError, setActionError] = useState("");
   const [newNote, setNewNote] = useState("");
   const [postingNote, setPostingNote] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+
 
   useEffect(() => {
     load();
@@ -91,6 +95,22 @@ export default function StaffTicketDetail() {
       setPostingNote(false);
     }
   }
+
+  async function handlePostComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ticket || newComment.trim().length === 0) return;
+    setPostingComment(true);
+    try {
+      const comment = await postComment(ticket.id, newComment.trim());
+      setTicket((t) => (t ? { ...t, comments: [...t.comments, comment] } : t));
+      setNewComment("");
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setPostingComment(false);
+    }
+  }
+  
 
   if (state === "loading") return <p role="status">Loading ticket…</p>;
   if (state === "forbidden")
@@ -199,6 +219,17 @@ export default function StaffTicketDetail() {
           ))}
           {ticket.comments.length === 0 && <li className="text-muted small">No comments yet.</li>}
         </ul>
+        <form onSubmit={handlePostComment} className="d-flex gap-2 mt-3">
+          <input
+            className="form-control"
+            placeholder="Add a public comment…"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+          />
+          <button className="btn btn-success" type="submit" disabled={postingComment}>
+            {postingComment ? "Posting…" : "Post"}
+          </button>
+        </form>
       </section>
 
       <section className="card p-3" aria-label="Internal Notes">

@@ -38,21 +38,26 @@ export default function TicketDetail() {
   async function load() {
     if (!user || !id) return;
     setState("loading");
-    try {
-      const [data, commentsData] = await Promise.all([
-        fetchTicketDetail(Number(id)),
-        fetchComments(Number(id)),
-      ]);
-      setTicket(data);
-      setComments(commentsData);
-      setState("loaded");
-    } catch (err) {
-      if ((err as Error).message === "Ticket not found") {
-        setState("not-found");
-      } else {
-        setState("error");
-      }
+
+    const [ticketResult, commentsResult] = await Promise.allSettled([
+      fetchTicketDetail(Number(id)),
+      fetchComments(Number(id)),
+    ]);
+
+    // The ticket request is authoritative: it alone decides "not found".
+    if (ticketResult.status === "rejected") {
+      const message = (ticketResult.reason as Error).message;
+      setState(message === "Ticket not found" ? "not-found" : "error");
+      return;
     }
+    if (commentsResult.status === "rejected") {
+      setState("error");
+      return;
+    }
+
+    setTicket(ticketResult.value);
+    setComments(commentsResult.value);
+    setState("loaded");
   }
 
   async function handleAddAttachment(e: React.ChangeEvent<HTMLInputElement>) {
